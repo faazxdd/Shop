@@ -226,6 +226,9 @@ textarea.input { min-height: 96px; resize: vertical; }
   transition: transform .3s var(--ease);
 }
 .brand:hover .logo { transform: rotate(-8deg) scale(1.06); }
+.brand .logo { overflow: hidden; width: 44px; height: 44px; border-radius: 12px; background: #fff; color: var(--primary); border: 1px solid var(--border); box-shadow: var(--shadow); }
+.brand .logo img { width: 100%; height: 100%; object-fit: contain; display: block; transform: scale(1.2); }
+.login-logo { width: 84px; height: 84px; border-radius: 20px; margin: 0 auto 8px; object-fit: contain; background: #fff; border: 1px solid var(--border); }
 .nav-links { display: none; gap: 22px; }
 .nav-links a { color: var(--text); font-weight: 600; font-size: .95rem; position: relative; padding: 4px 0; }
 .nav-links a::after { content: ""; position: absolute; left: 0; bottom: -2px; height: 2px; width: 0; background: var(--primary); border-radius: 2px; transition: width .25s var(--ease); }
@@ -337,6 +340,28 @@ textarea.input { min-height: 96px; resize: vertical; }
 .promo-banner h3 { margin: 4px 0 4px; font-size: 1.2rem; }
 .promo-banner p { margin: 0; opacity: .85; font-size: .9rem; }
 .eyebrow { font-size: .7rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; opacity: .8; }
+
+/* ---------- Order tracking timeline ---------- */
+.order-card { margin-bottom: 14px; }
+.order-card .order-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.order-card .num { font-weight: 800; font-size: 1.1rem; }
+.order-status-msg { margin: 12px 0 0; padding: 10px 14px; border-radius: var(--radius-sm); background: var(--primary-soft); color: var(--primary); font-weight: 600; font-size: .9rem; }
+.order-status-msg.bad { background: var(--danger-soft); color: var(--danger); }
+.order-status-msg.good { background: var(--success-soft); color: var(--success); }
+.timeline { list-style: none; margin: 16px 0 0; padding: 0; }
+.timeline li { position: relative; padding: 0 0 18px 38px; color: var(--text-soft); font-weight: 600; min-height: 24px; }
+.timeline li:last-child { padding-bottom: 0; }
+.timeline li::before { content: ""; position: absolute; left: 11px; top: 26px; bottom: 2px; width: 2px; background: var(--border); }
+.timeline li:last-child::before { display: none; }
+.timeline .tl-dot { position: absolute; left: 0; top: 0; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border); background: var(--surface); display: grid; place-items: center; color: #fff; transition: background .3s ease, border-color .3s ease; }
+.timeline .tl-dot .i { width: 13px; height: 13px; }
+.timeline li.done, .timeline li.current { color: var(--text); }
+.timeline li.done .tl-dot { background: var(--primary); border-color: var(--primary); }
+.timeline li.done::before { background: var(--primary); }
+.timeline li.current .tl-dot { background: var(--primary-soft); border-color: var(--primary); animation: pulseRing 2s infinite; }
+.timeline li.current .tl-dot::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
+.order-items { margin: 12px 0 0; font-size: .88rem; }
+.timeline small { display: block; font-weight: 400; color: var(--text-soft); font-size: .8rem; }
 
 /* ---------- Tables ---------- */
 .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
