@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Shop</title>
+  <meta name="description" content="Browse our products and place your order online.">
+  <meta name="theme-color" content="#1f4fd8">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="site-header"></header>
+
+  <section class="hero">
+    <div class="container">
+      <h1>Find what you need</h1>
+      <p>Browse our catalogue, add items to your cart and send your order. We will confirm it with you directly.</p>
+      <form id="search-form" class="search-bar" role="search">
+        <input class="input" id="q" type="search" placeholder="Search products" aria-label="Search products" autocomplete="off" maxlength="80">
+      </form>
+    </div>
+  </section>
+
+  <main class="container">
+    <section aria-labelledby="cat-title" class="mt">
+      <h2 id="cat-title">Categories</h2>
+      <div class="chips" id="categories" aria-live="polite"></div>
+    </section>
+
+    <section aria-labelledby="latest-title" class="mt">
+      <div class="row between">
+        <h2 id="latest-title" style="margin:0">Latest products</h2>
+        <a href="products.html" class="small"><strong>View all</strong></a>
+      </div>
+      <div class="grid mt" id="products" aria-live="polite">
+        <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-footer"></footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
+  <script src="supabase.js"></script>
+  <script src="app.js"></script>
+  <script>
+    renderSiteHeader('home');
+
+    const grid = $('#products');
+    const chips = $('#categories');
+
+    // Search goes to the catalogue page.
+    $('#search-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const q = $('#q').value.trim();
+      location.href = 'products.html' + (q ? '?q=' + encodeURIComponent(q) : '');
+    });
+
+    function showSetupHint() {
+      if (SUPABASE_URL.includes('YOUR-PROJECT-REF')) {
+        grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="big">&#9881;</div>' +
+          'Setup needed: open <strong>supabase.js</strong> and add your Supabase URL and anon key.</div>';
+        return true;
+      }
+      return false;
+    }
+
+    async function load() {
+      if (showSetupHint()) { chips.innerHTML = ''; return; }
+      try {
+        const settings = await applyBusinessSettings();
+        if (settings) document.title = settings.business_name;
+
+        const [cats, products] = await Promise.all([
+          Shop.categories(),
+          Shop.products({ limit: 8 })
+        ]);
+
+        chips.innerHTML = cats.length
+          ? cats.map(c => `<a class="chip" href="products.html?cat=${encodeURIComponent(c.id)}">${esc(c.name)}</a>`).join('')
+          : '<span class="muted small">No categories yet</span>';
+
+        grid.innerHTML = products.length
+          ? products.map(productCardHtml).join('')
+          : '<div class="empty" style="grid-column:1/-1"><div class="big">&#128230;</div>No products available yet. Please check back soon.</div>';
+      } catch (err) {
+        console.error(err);
+        grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="big">&#9888;</div>' +
+          'Could not load products. Please refresh the page.</div>';
+      }
+    }
+    load();
+  </script>
+</body>
+</html>

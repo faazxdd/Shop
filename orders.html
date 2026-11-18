@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Order received</title>
+  <meta name="theme-color" content="#1f4fd8">
+  <meta name="robots" content="noindex">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="site-header"></header>
+
+  <main class="container" style="padding-top:16px; max-width:560px">
+    <div id="content"></div>
+  </main>
+
+  <footer id="site-footer"></footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
+  <script src="supabase.js"></script>
+  <script src="app.js"></script>
+  <script>
+    renderSiteHeader('');
+    const content = $('#content');
+
+    // Customers have no read access to the orders table (by design),
+    // so this page only shows what the server returned when the order was placed.
+    let order = null;
+    try { order = JSON.parse(sessionStorage.getItem('last_order') || 'null'); } catch { order = null; }
+
+    function show(settings) {
+      if (!order || !order.order_number) {
+        content.innerHTML = `
+          <div class="empty">
+            <div class="big">&#128230;</div>
+            <p>No recent order to show on this device.</p>
+            <a class="btn btn-primary" href="products.html">Browse products</a>
+          </div>`;
+        return;
+      }
+
+      const phone = settings?.contact_phone;
+      content.innerHTML = `
+        <div class="card confirm-box">
+          <div class="confirm-icon" aria-hidden="true">&#10003;</div>
+          <h1 style="margin-bottom:4px">Order received</h1>
+          <p class="muted">Thank you! Our team will contact you shortly to confirm your order.</p>
+
+          <div class="mt mb">
+            <div class="muted small">Order number</div>
+            <div class="order-number">#${esc(order.order_number)}</div>
+          </div>
+
+          <div class="summary-row summary-total"><span>Total</span><span>${money(order.total)}</span></div>
+          <div class="summary-row"><span>Status</span><span>${statusBadge('pending')}</span></div>
+
+          <p class="help mt">Please keep your order number. Payment is arranged directly with the shop.</p>
+          ${phone ? `<p class="small">Questions? Call <a href="tel:${esc(phone.replace(/[^+\d]/g, ''))}">${esc(phone)}</a></p>` : ''}
+
+          <div class="stack mt">
+            <a class="btn btn-primary btn-block" href="products.html">Continue shopping</a>
+            <a class="btn btn-block" href="index.html">Back to home</a>
+          </div>
+        </div>`;
+    }
+
+    (async () => {
+      show(null);                                  // render immediately
+      const settings = await applyBusinessSettings();
+      if (settings) show(settings);               // re-render with contact number
+    })();
+  </script>
+</body>
+</html>

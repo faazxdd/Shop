@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Admin</title>
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#1f4fd8">
+  <link rel="manifest" href="admin-manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="admin-body">
+
+  <!-- Login -->
+  <div class="login-wrap" id="login-view" hidden>
+    <form class="card login-card" id="login-form">
+      <h1 style="text-align:center">Admin sign in</h1>
+      <label class="field"><span>Email</span><input class="input" name="email" type="email" autocomplete="username" required></label>
+      <label class="field"><span>Password</span><input class="input" name="password" type="password" autocomplete="current-password" required></label>
+      <button class="btn btn-primary btn-block" type="submit">Sign in</button>
+    </form>
+  </div>
+
+  <!-- App shell -->
+  <div id="app-view" hidden>
+    <header class="admin-top">
+      <strong id="top-title">Admin</strong>
+      <span class="spacer"></span>
+      <button class="btn btn-sm" id="signout">Sign out</button>
+    </header>
+    <nav class="admin-nav" id="nav" aria-label="Admin sections"></nav>
+    <main class="admin-main" id="tab-content"></main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
+  <script src="supabase.js"></script>
+  <script src="app.js"></script>
+  <script>
+    /* ---------- Tab registry: other admin-*.js files add tabs with Tabs.push({...}) ---------- */
+    const Tabs = [];
+    let currentTab = null;
+
+    function showTab(key) {
+      const tab = Tabs.find(t => t.key === key) || Tabs[0];
+      currentTab = tab.key;
+      $$('#nav button').forEach(b => b.classList.toggle('active', b.dataset.key === tab.key));
+      $('#top-title').textContent = tab.label;
+      const el = $('#tab-content');
+      el.innerHTML = '';
+      Promise.resolve(tab.render(el)).catch(err => { console.error(err); el.innerHTML = `<div class="empty">${esc(errMsg(err))}</div>`; });
+    }
+
+    function buildNav() {
+      Tabs.sort((a, b) => a.order - b.order);
+      $('#nav').innerHTML = Tabs.map(t =>
+        `<button data-key="${t.key}"><span class="ico">${t.ico}</span>${esc(t.label)}${t.key === 'orders' ? '<span class="nav-badge" id="orders-badge" hidden></span>' : ''}</button>`).join('');
+      $('#nav').onclick = e => { const b = e.target.closest('button'); if (b) showTab(b.dataset.key); };
+    }
+
+    /* =========================== DASHBOARD =========================== */
+    Tabs.push({
+      key: 'dashboard', order: 1, label: 'Dashboard', ico: '&#128202;',
+      async render(el) {
+        el.innerHTML = '<div class="stats"><div class="skeleton" style="min-height:80px"></div><div class="skeleton" style="min-height:80px"></div></div>';
+        const s = await Admin.summary();
+        const stat = (label, value, cls = '') => `<div class="card stat ${cls}"><div class="label">${esc(label)}</div><div class="value">${value}</div></div>`;
+        el.innerHTML = `
+          <div class="stats">
+            ${stat('Total products', s.total_products)}
+            ${stat('Available stock', s.total_stock)}
+            ${stat('Purchase stock value', money(s.purchase_value))}
+            ${stat('Selling stock value', money(s.selling_value))}
+            ${stat('Potential gross profit', money(s.potential_profit))}
+            ${stat('Low stock', s.low_stock, s.low_stock ? 'warn' : '')}
+            ${stat('Out of stock', s.out_of_stock, s.out_of_stock ? 'bad' : '')}
+            ${stat('Pending orders', s.orders_pending, s.orders_pending ? 'warn' : '')}
+            ${stat('Confirmed / processing', s.orders_confirmed)}
+            ${stat('Completed orders', s.orders_completed)}
+            ${stat('Cancelled / rejected', s.orders_cancelled)}
+          </div>`;
+      }
+    });
+
+    /* =========================== PRODUCTS =========================== */
+    Tabs.push({
+      key: 'products', order: 2, label: 'Products', ico: '&#128230;',
+      async render(el) {
+        el.innerHTML = `
+          <div class="toolbar">
+            <input class="input" id="p-search" type="search" placeholder="Search name, SKU, brand">
+            <select class="input" id="p-status"><option value="">All status</option><option>published</option><option>draft</option><option>archived</option></select>
+            <select class="input" id="p-stock"><option value="">All stock</option><option value="low">Low stock</option><option value="out">Out of stock</option></select>
+            <button class="btn btn-primary" id="p-add">+ Add product</button>
+          </div>
+          <div id="p-list"></div>`;
+        const list = $('#p-list');
+
+        async function load() {
+          list.innerHTML = '<div class="skeleton"></div>';
+          try {
+            const rows = await Admin.products({ search: $('#p-search').value, status: $('#p-status').value, stock: $('#p-stock').value });
+            list.innerHTML = rows.length ? rows.map(p => `
+              <div class="card list-card" data-id="${esc(p.id)}">
+                ${p.images?.[0] ? `<img class="thumb-sm" src="${esc(p.images[0])}" alt="" loading="lazy">` : '<div class="thumb-sm thumb-empty" style="font-size:1.2rem">&#128247;</div>'}
+                <div class="grow">
+                  <div class="title">${esc(p.name)}</div>
+                  <div class="muted small">${esc(p.sku || 'No SKU')} &middot; ${esc(p.categories?.name || 'No category')}</div>
+                  <div class="small">${money(p.selling_price)} <span class="muted">(cost ${money(p.purchase_price)})</span></div>
+                  <div class="row wrap" style="gap:6px;margin-top:4px">
+                    ${productStatusBadge(p.status)}
+                    <span class="badge ${p.quantity === 0 ? 'badge-danger' : p.quantity <= p.min_stock_alert ? 'badge-warning' : 'badge-success'}">Stock ${p.quantity}${p.reserved_quantity ? ` (${p.reserved_quantity} reserved)` : ''}</span>
+                  </div>
+                </div>
+                <div class="stack" style="min-width:76px">
+                  <button class="btn btn-sm" data-stock>Stock</button>
+                  <button class="btn btn-sm" data-edit>Edit</button>
+                </div>
+              </div>`).join('') : '<div class="empty"><div class="big">&#128230;</div>No products found.</div>';
+            list._rows = Object.fromEntries(rows.map(p => [p.id, p]));
+          } catch (err) { list.innerHTML = `<div class="empty">${esc(errMsg(err))}</div>`; }
+        }
+
+        list.onclick = e => {
+          const card = e.target.closest('.list-card'); if (!card) return;
+          const p = list._rows[card.dataset.id];
+          if (e.target.closest('[data-edit]')) productForm(p, load);
+          else if (e.target.closest('[data-stock]')) stockForm(p, load);
+        };
+        $('#p-add').onclick = () => productForm(null, load);
+        $('#p-search').oninput = debounce(load, 350);
+        $('#p-status').onchange = load;
+        $('#p-stock').onchange = load;
+        load();
+      }
+    });
+
+    async function productForm(p, reload) {
+      const isNew = !p;
+      p = p || { images: [], status: 'draft', min_stock_alert: 5 };
+      let images = [...(p.images || [])];
+      const original = [...images];
+      let cats = [];
+      try { cats = await Admin.categories(); } catch (e) { console.error(e); }
+
+      const body = openSheet(isNew ? 'Add product' : 'Edit product', `
+        <form id="pf" novalidate>
+          <div class="form-grid">
+            <label class="field full"><span>Product name *</span><input class="input" name="name" maxlength="160" value="${esc(p.name)}" required></label>
+            <label class="field"><span>SKU / Barcode</span><input class="input" name="sku" maxlength="64" value="${esc(p.sku)}"></label>
+            <label class="field"><span>Brand</span><input class="input" name="brand" maxlength="80" value="${esc(p.brand)}"></label>
+            <label class="field"><span>Category</span><select class="input" name="category_id"><option value="">None</option>
+              ${cats.map(c => `<option value="${esc(c.id)}" ${c.id === p.category_id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>
+            <label class="field"><span>Status</span><select class="input" name="status">
+              ${['draft', 'published', 'archived'].map(s => `<option ${s === p.status ? 'selected' : ''}>${s}</option>`).join('')}</select>
+              <div class="help">Only "published" products show to customers.</div></label>
+            <label class="field"><span>Purchase price</span><input class="input" name="purchase_price" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(p.purchase_price ?? 0)}"></label>
+            <label class="field"><span>Selling price</span><input class="input" name="selling_price" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(p.selling_price ?? 0)}"></label>
+            <label class="field"><span>Minimum stock alert</span><input class="input" name="min_stock_alert" type="number" inputmode="numeric" min="0" step="1" value="${esc(p.min_stock_alert)}"></label>
+            ${isNew ? '<label class="field"><span>Initial quantity</span><input class="input" name="initial_qty" type="number" inputmode="numeric" min="0" step="1" value="0"></label>' : ''}
+            <label class="field full"><span>Description</span><textarea class="input" name="description" maxlength="4000">${esc(p.description)}</textarea></label>
+          </div>
+          <div class="field"><span>Photos</span>
+            <div class="image-grid" id="imgs"></div>
+            <input type="file" id="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+            <button type="button" class="btn btn-sm" id="addimg">+ Add photos</button>
+          </div>
+          <div class="row" style="justify-content:space-between;margin-top:8px">
+            ${isNew ? '<span></span>' : '<button type="button" class="btn btn-danger" id="del">Delete</button>'}
+            <button class="btn btn-primary" type="submit" id="save">Save</button>
+          </div>
+        </form>`);
+
+      const grid = $('#imgs', body);
+      function drawImgs() {
+        grid.innerHTML = images.map((u, i) => `<div class="image-tile"><img src="${esc(u)}" alt=""><button type="button" data-rm="${i}" aria-label="Remove photo">&#10005;</button></div>`).join('');
+      }
+      drawImgs();
+      grid.onclick = e => { const b = e.target.closest('[data-rm]'); if (b) { images.splice(Number(b.dataset.rm), 1); drawImgs(); } };
+      $('#addimg', body).onclick = () => $('#file', body).click();
+      $('#file', body).onchange = async e => {
+        const btn = $('#addimg', body);
+        await withBusy(btn, async () => {
+          for (const f of e.target.files) {
+            try { images.push(await Admin.uploadImage(f)); drawImgs(); } catch (err) { toast(errMsg(err), 'error'); }
+          }
+        });
+        e.target.value = '';
+      };
+
+      const form = $('#pf', body);
+      form.onsubmit = async ev => {
+        ev.preventDefault();
+        const f = form.elements;
+        if (!f.name.value.trim()) return toast('Product name is required', 'error');
+        await withBusy($('#save', body), async () => {
+          try {
+            const saved = await Admin.saveProduct({
+              id: p.id, name: f.name.value, sku: f.sku.value, brand: f.brand.value, category_id: f.category_id.value,
+              status: f.status.value, purchase_price: f.purchase_price.value, selling_price: f.selling_price.value,
+              min_stock_alert: f.min_stock_alert.value, description: f.description.value, images
+            });
+            if (isNew) {
+              const q = parseInt(f.initial_qty.value, 10) || 0;
+              if (q > 0) await Admin.stockMove(saved.id, 'in', q, 'Initial stock');
+            }
+            // Delete photos that were removed from storage
+            for (const u of original.filter(u => !images.includes(u))) { try { await Admin.deleteImage(u); } catch (e) { console.error(e); } }
+            toast('Product saved', 'success'); closeSheet(); reload();
+          } catch (err) {
+            toast(/duplicate key|sku/i.test(errMsg(err)) ? 'That SKU is already used' : errMsg(err), 'error');
+          }
+        });
+      };
+
+      const del = $('#del', body);
+      if (del) del.onclick = async () => {
+        if (!(await confirmDialog(`Delete "${p.name}"? This cannot be undone.`, 'Delete', true))) return;
+        try {
+          await Admin.deleteProduct(p.id);
+          for (const u of images) { try { await Admin.deleteImage(u); } catch (e) { /* ignore */ } }
+          toast('Product deleted', 'success'); reload();
+        } catch (err) { toast(errMsg(err), 'error'); }
+      };
+    }
+
+    function stockForm(p, reload) {
+      const body = openSheet('Stock: ' + p.name, `
+        <p class="muted">On hand: <strong>${p.quantity}</strong> &middot; Reserved for open orders: <strong>${p.reserved_quantity}</strong></p>
+        <form id="sf">
+          <label class="field"><span>Action</span><select class="input" name="type">
+            <option value="in">Stock in (add)</option><option value="out">Stock out (remove)</option><option value="adjust">Adjust (set exact quantity)</option></select></label>
+          <label class="field"><span>Quantity</span><input class="input" name="qty" type="number" inputmode="numeric" min="0" step="1" required></label>
+          <label class="field"><span>Reason / note</span><input class="input" name="reason" maxlength="300" placeholder="e.g. New delivery, damaged, recount"></label>
+          <button class="btn btn-primary btn-block" type="submit" id="ssave">Save stock change</button>
+        </form>`);
+      $('#sf', body).onsubmit = async ev => {
+        ev.preventDefault();
+        const f = ev.target.elements;
+        const qty = parseInt(f.qty.value, 10);
+        if (Number.isNaN(qty) || qty < 0) return toast('Enter a valid quantity', 'error');
+        await withBusy($('#ssave', body), async () => {
+          try { await Admin.stockMove(p.id, f.type.value, qty, f.reason.value); toast('Stock updated', 'success'); closeSheet(); reload(); }
+          catch (err) { toast(errMsg(err), 'error'); }
+        });
+      };
+    }
+  </script>
+
+  <!-- ADMIN-PARTS: more tabs are added here as separate files -->
+  <script src="admin-orders.js"></script>
+  <script src="admin-reports.js"></script>
+  <script src="admin-settings.js"></script>
+
+  <script>
+    /* ---------- Boot: decide login vs app ---------- */
+    async function boot() {
+      if (SUPABASE_URL.includes('YOUR-PROJECT-REF')) {
+        document.body.innerHTML = '<div class="empty"><div class="big">&#9881;</div>Setup needed: add your Supabase URL and anon key in <strong>supabase.js</strong>.</div>';
+        return;
+      }
+      const ok = await Auth.requireAdmin();
+      $('#login-view').hidden = ok;
+      $('#app-view').hidden = !ok;
+      if (ok) {
+        buildNav(); showTab(location.hash.slice(1) || 'dashboard');
+        (window.onAdminReady || []).forEach(fn => { try { fn(); } catch (e) { console.error(e); } });
+      }
+    }
+
+    $('#login-form').onsubmit = async e => {
+      e.preventDefault();
+      const f = e.target.elements;
+      await withBusy($('button[type=submit]', e.target), async () => {
+        try { await Auth.signIn(f.email.value.trim(), f.password.value); f.password.value = ''; boot(); }
+        catch (err) { toast(errMsg(err), 'error'); }
+      });
+    };
+    $('#signout').onclick = async () => { await Auth.signOut(); location.reload(); };
+    boot();
+  </script>
+</body>
+</html>

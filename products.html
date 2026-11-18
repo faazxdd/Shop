@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Products</title>
+  <meta name="theme-color" content="#1f4fd8">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="site-header"></header>
+
+  <main class="container" id="main" style="padding-top:16px"></main>
+
+  <footer id="site-footer"></footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
+  <script src="supabase.js"></script>
+  <script src="app.js"></script>
+  <script>
+    renderSiteHeader('products');
+    applyBusinessSettings();
+
+    const main = $('#main');
+    const PAGE = 24;
+
+    /* =====================================================
+       DETAIL MODE:  products.html?id=<product id>
+       ===================================================== */
+    async function showDetail(id) {
+      main.innerHTML = '<div class="skeleton" style="min-height:320px"></div>';
+      let p;
+      try { p = await Shop.product(id); }
+      catch (err) { console.error(err); p = null; main.innerHTML = errorBox('Could not load this product.'); return; }
+
+      if (!p) {
+        main.innerHTML = `<div class="empty"><div class="big">&#128269;</div>
+          This product is no longer available.<div class="mt"><a class="btn" href="products.html">Browse products</a></div></div>`;
+        return;
+      }
+
+      document.title = p.name;
+      const images = (p.images && p.images.length) ? p.images : [];
+      const out = p.stock_status === 'out_of_stock';
+      let qty = 1;
+
+      main.innerHTML = `
+        <p class="small"><a href="products.html">&larr; All products</a></p>
+        <div class="detail">
+          <div>
+            <div id="gallery-main">${images[0]
+              ? `<img class="gallery-main" id="main-img" src="${esc(images[0])}" alt="${esc(p.name)}">`
+              : '<div class="thumb-empty gallery-main">&#128247;</div>'}</div>
+            ${images.length > 1 ? `<div class="gallery-thumbs" id="thumbs">${
+              images.map((u, i) => `<img src="${esc(u)}" alt="Photo ${i + 1} of ${esc(p.name)}" data-i="${i}" class="${i === 0 ? 'active' : ''}" loading="lazy">`).join('')
+            }</div>` : ''}
+          </div>
+          <div class="stack">
+            ${p.category_name ? `<a class="badge badge-primary" href="products.html?cat=${encodeURIComponent(p.category_id)}">${esc(p.category_name)}</a>` : ''}
+            <h1 style="margin:0">${esc(p.name)}</h1>
+            <div class="price-lg">${money(p.selling_price)}</div>
+            <div>${stockBadge(p.stock_status)}</div>
+            ${p.description ? `<p style="white-space:pre-line">${esc(p.description)}</p>` : ''}
+            <div class="row wrap">
+              <div class="qty" aria-label="Quantity">
+                <button type="button" id="minus" aria-label="Decrease">&minus;</button>
+                <span id="qty-val" aria-live="polite">1</span>
+                <button type="button" id="plus" aria-label="Increase">+</button>
+              </div>
+              <button class="btn btn-primary" id="add" style="flex:1" ${out ? 'disabled' : ''}>
+                ${out ? 'Out of stock' : 'Add to cart'}
+              </button>
+            </div>
+            <a class="btn btn-block" href="cart.html">View cart</a>
+          </div>
+        </div>`;
+
+      // Gallery: tap a thumbnail to change the main photo.
+      const thumbs = $('#thumbs');
+      if (thumbs) thumbs.addEventListener('click', e => {
+        const img = e.target.closest('img[data-i]');
+        if (!img) return;
+        $('#main-img').src = images[Number(img.dataset.i)];
+        $$('img', thumbs).forEach(t => t.classList.toggle('active', t === img));
+      });
+
+      $('#minus').onclick = () => { qty = Math.max(1, qty - 1); $('#qty-val').textContent = qty; };
+      $('#plus').onclick = () => { qty = Math.min(99, qty + 1); $('#qty-val').textContent = qty; };
+      $('#add').onclick = () => {
+        if (out) return;
+        Shop.cart.add(p.id, qty);
+        toast(`Added ${qty} to cart`, 'success');
+      };
+    }
+
+    /* =====================================================
+       CATALOGUE MODE:  products.html?q=...&cat=...
+       ===================================================== */
+    async function showCatalogue() {
+      let search = param('q') || '';
+      let cat = param('cat') || '';
+      let offset = 0;
+
+      main.innerHTML = `
+        <h1>Products</h1>
+        <form id="search-form" class="search-bar mb" role="search" onsubmit="return false">
+          <input class="input" id="q" type="search" placeholder="Search products" aria-label="Search products" autocomplete="off" maxlength="80">
+        </form>
+        <div class="chips" id="chips" aria-label="Categories"></div>
+        <div class="grid mt" id="grid" aria-live="polite"></div>
+        <div class="center mt"><button class="btn" id="more" hidden>Load more</button></div>`;
+
+      const grid = $('#grid'), chips = $('#chips'), more = $('#more'), qInput = $('#q');
+      qInput.value = search;
+
+      let cats = [];
+      try { cats = await Shop.categories(); } catch (e) { console.error(e); }
+
+      function drawChips() {
+        chips.innerHTML =
+          `<button class="chip ${cat ? '' : 'active'}" data-cat="">All</button>` +
+          cats.map(c => `<button class="chip ${cat === c.id ? 'active' : ''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`).join('');
+      }
+      chips.addEventListener('click', e => {
+        const b = e.target.closest('[data-cat]');
+        if (!b) return;
+        cat = b.dataset.cat;
+        drawChips();
+        reload();
+      });
+
+      function syncUrl() {
+        const u = new URLSearchParams();
+        if (search) u.set('q', search);
+        if (cat) u.set('cat', cat);
+        history.replaceState(null, '', 'products.html' + (u.toString() ? '?' + u : ''));
+      }
+
+      let requestId = 0;   // ignore slow responses from older searches
+      async function load(append) {
+        const mine = ++requestId;
+        if (!append) {
+          grid.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
+          more.hidden = true;
+        }
+        try {
+          const rows = await Shop.products({ search, categoryId: cat, limit: PAGE, offset });
+          if (mine !== requestId) return;
+          const html = rows.map(productCardHtml).join('');
+          if (append) grid.insertAdjacentHTML('beforeend', html);
+          else grid.innerHTML = html || `<div class="empty" style="grid-column:1/-1"><div class="big">&#128269;</div>No products found.</div>`;
+          more.hidden = rows.length < PAGE;
+        } catch (err) {
+          if (mine !== requestId) return;
+          console.error(err);
+          grid.innerHTML = `<div style="grid-column:1/-1">${errorBox('Could not load products. Please refresh the page.')}</div>`;
+        }
+      }
+      function reload() { offset = 0; syncUrl(); load(false); }
+
+      qInput.addEventListener('input', debounce(() => { search = qInput.value.trim(); reload(); }, 350));
+      more.onclick = () => { offset += PAGE; load(true); };
+
+      drawChips();
+      load(false);
+    }
+
+    function errorBox(msg) {
+      return `<div class="empty"><div class="big">&#9888;</div>${esc(msg)}</div>`;
+    }
+
+    /* ---------- Router ---------- */
+    (function start() {
+      if (SUPABASE_URL.includes('YOUR-PROJECT-REF')) {
+        main.innerHTML = '<div class="empty"><div class="big">&#9881;</div>Setup needed: add your Supabase URL and anon key in <strong>supabase.js</strong>.</div>';
+        return;
+      }
+      const id = param('id');
+      if (id) showDetail(id); else showCatalogue();
+    })();
+  </script>
+</body>
+</html>
