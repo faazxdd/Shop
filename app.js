@@ -164,10 +164,12 @@ function renderSiteHeader(active = '', step = 0) {
       <nav class="nav-links" aria-label="Main">
         ${link('index.html', 'Home', 'home')}
         ${link('products.html', 'Products', 'products')}
+        ${link('orders.html', 'My orders', 'orders')}
       </nav>
       <span class="spacer"></span>
       ${step ? stepsHtml(step) + '<span class="spacer"></span>' : ''}
       <a class="icon-btn" href="products.html" aria-label="Search products"><i class="i i-search"></i></a>
+      <a class="icon-btn" href="orders.html" aria-label="My orders"><i class="i i-orders"></i></a>
       <button class="icon-btn theme-toggle" type="button" aria-label="Switch light or dark theme"><i class="i i-moon"></i><i class="i i-sun"></i></button>
       <a class="icon-btn cart-link" href="cart.html" aria-label="Cart">
         <i class="i i-bag"></i><span class="cart-count" id="cart-count" data-n="0"></span>

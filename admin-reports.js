@@ -65,7 +65,7 @@
         const os = await Admin.orders({ ...r, limit: 5000 });
         return { name: 'orders', rows: os.map(o => ({
           Order: o.order_number, Date: stamp(o.created_at), Customer: o.customer_name, Phone: o.customer_phone,
-          Address: o.delivery_address || '', Status: o.status,
+          Address: o.delivery_address || '', Status: o.status, Stage: o.fulfillment_step || '',
           Items: (o.order_items || []).map(i => `${i.product_name} x${i.quantity}`).join('; '), Total: o.total })) };
     } },
     { key: 'daily', label: 'Daily orders', needsRange: true, async build(r) {
