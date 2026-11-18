@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Your cart - FZ Cart</title>
+  <title>Your cart</title>
   <meta name="theme-color" content="#6C5CE7">
   <meta name="robots" content="noindex">
   <link rel="manifest" href="manifest.json">
@@ -215,7 +215,7 @@
         await withBusy($('#place'), async () => {
           await Shop.placeOrder({ name, phone, address });
         });
-        location.href = 'orders.html#placed';
+        location.href = 'orders.html';
       } catch (err) {
         toast(errMsg(err), 'error');
         // Stock may have changed; refresh the cart view.

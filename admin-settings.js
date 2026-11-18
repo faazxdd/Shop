@@ -68,7 +68,7 @@
           <h2>Business</h2>
           <form id="bs">
             <div class="form-grid">
-              <label class="field"><span>Business name</span><input class="input" name="business_name" maxlength="80" value="${esc(brandName(settings))}" required></label>
+              <label class="field"><span>Business name</span><input class="input" name="business_name" maxlength="80" value="${esc(settings.business_name)}" required></label>
               <label class="field"><span>Currency</span><input class="input" name="currency" maxlength="8" value="${esc(settings.currency || 'AED')}" required></label>
               <label class="field"><span>Contact phone (shown to customers)</span><input class="input" name="contact_phone" type="tel" maxlength="20" value="${esc(settings.contact_phone)}"></label>
               <label class="field"><span>Public website link</span><input class="input" name="public_url" type="url" maxlength="300" placeholder="${esc(defaultSiteUrl())}" value="${esc(settings.public_url)}">
