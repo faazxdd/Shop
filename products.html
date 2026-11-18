@@ -3,11 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Products - FZ Cart</title>
-  <meta name="theme-color" content="#6C5CE7">
+  <title>Products</title>
+  <meta name="theme-color" content="#6d4aff">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <script>try{var t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -37,7 +36,7 @@
       catch (err) { console.error(err); p = null; main.innerHTML = errorBox('Could not load this product.'); return; }
 
       if (!p) {
-        main.innerHTML = `<div class="empty"><div class="big"><i class="i i-search"></i></div>
+        main.innerHTML = `<div class="empty"><div class="big">${icon('search', 28)}</div>
           This product is no longer available.<div class="mt"><a class="btn" href="products.html">Browse products</a></div></div>`;
         return;
       }
@@ -48,12 +47,12 @@
       let qty = 1;
 
       main.innerHTML = `
-        <p class="small"><a href="products.html"><i class="i i-arrow-left"></i> All products</a></p>
+        <p class="small"><a href="products.html">&larr; All products</a></p>
         <div class="detail">
           <div>
             <div id="gallery-main">${images[0]
               ? `<img class="gallery-main" id="main-img" src="${esc(images[0])}" alt="${esc(p.name)}">`
-              : '<div class="thumb-empty gallery-main"><i class="i i-camera"></i></div>'}</div>
+              : '<div class="thumb-empty gallery-main">' + icon('image', 28) + '</div>'}</div>
             ${images.length > 1 ? `<div class="gallery-thumbs" id="thumbs">${
               images.map((u, i) => `<img src="${esc(u)}" alt="Photo ${i + 1} of ${esc(p.name)}" data-i="${i}" class="${i === 0 ? 'active' : ''}" loading="lazy">`).join('')
             }</div>` : ''}
@@ -93,7 +92,38 @@
         if (out) return;
         Shop.cart.add(p.id, qty);
         toast(`Added ${qty} to cart`, 'success');
+        const addBtn = $('#add');
+        addBtn.classList.remove('is-added');
+        void addBtn.offsetWidth;
+        addBtn.classList.add('is-added');
       };
+
+      loadRelated(p);
+    }
+
+    /* ---------- Related products: horizontal scroll rail (same category) ---------- */
+    async function loadRelated(p) {
+      if (!p.category_id) return;
+      let rows;
+      try { rows = await Shop.products({ search: '', categoryId: p.category_id, limit: 9, offset: 0 }); }
+      catch (e) { console.error(e); return; }
+      const rel = (rows || []).filter(r => r.id !== p.id).slice(0, 8);
+      if (!rel.length || !$('.detail', main)) return;
+      main.insertAdjacentHTML('beforeend', `
+        <section class="related mt fade-in" aria-labelledby="rel-title">
+          <div class="row between">
+            <h2 id="rel-title" style="margin:0">You may also like</h2>
+            <div class="rail-nav">
+              <button type="button" class="icon-btn" id="rail-prev" aria-label="Scroll left">${icon('left', 20)}</button>
+              <button type="button" class="icon-btn" id="rail-next" aria-label="Scroll right">${icon('right', 20)}</button>
+            </div>
+          </div>
+          <div class="rail" id="rail">${rel.map(productCardHtml).join('')}</div>
+        </section>`);
+      const rail = $('#rail');
+      const step = () => Math.max(180, rail.clientWidth * 0.8);
+      $('#rail-prev').onclick = () => rail.scrollBy({ left: -step(), behavior: 'smooth' });
+      $('#rail-next').onclick = () => rail.scrollBy({ left: step(), behavior: 'smooth' });
     }
 
     /* =====================================================
@@ -120,9 +150,16 @@
       try { cats = await Shop.categories(); } catch (e) { console.error(e); }
 
       function drawChips() {
+        const keepScroll = chips.scrollLeft;
         chips.innerHTML =
           `<button class="chip ${cat ? '' : 'active'}" data-cat="">All</button>` +
           cats.map(c => `<button class="chip ${cat === c.id ? 'active' : ''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`).join('');
+        chips.scrollLeft = keepScroll;
+        const on = chips.querySelector('.chip.active');
+        if (on && on.scrollIntoView) {
+          const calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+          on.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', inline: 'center', block: 'nearest' });
+        }
       }
       chips.addEventListener('click', e => {
         const b = e.target.closest('[data-cat]');
@@ -151,7 +188,7 @@
           if (mine !== requestId) return;
           const html = rows.map(productCardHtml).join('');
           if (append) grid.insertAdjacentHTML('beforeend', html);
-          else grid.innerHTML = html || `<div class="empty" style="grid-column:1/-1"><div class="big"><i class="i i-search"></i></div>No products found.</div>`;
+          else grid.innerHTML = html || `<div class="empty" style="grid-column:1/-1"><div class="big">${icon('search', 28)}</div>No products found.</div>`;
           more.hidden = rows.length < PAGE;
         } catch (err) {
           if (mine !== requestId) return;
@@ -169,13 +206,13 @@
     }
 
     function errorBox(msg) {
-      return `<div class="empty"><div class="big"><i class="i i-alert"></i></div>${esc(msg)}</div>`;
+      return `<div class="empty"><div class="big">${icon('alert', 28)}</div>${esc(msg)}</div>`;
     }
 
     /* ---------- Router ---------- */
     (function start() {
       if (SUPABASE_URL.includes('YOUR-PROJECT-REF')) {
-        main.innerHTML = '<div class="empty"><div class="big"><i class="i i-gear"></i></div>Setup needed: add your Supabase URL and anon key in <strong>supabase.js</strong>.</div>';
+        main.innerHTML = '<div class="empty"><div class="big">' + icon('settings', 28) + '</div>Setup needed: add your Supabase URL and anon key in <strong>supabase.js</strong>.</div>';
         return;
       }
       const id = param('id');

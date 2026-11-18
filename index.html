@@ -3,24 +3,41 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>FZ Cart</title>
+  <title>Shop</title>
   <meta name="description" content="Browse our products and place your order online.">
-  <meta name="theme-color" content="#6C5CE7">
+  <meta name="theme-color" content="#6d4aff">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <script>try{var t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header id="site-header"></header>
 
   <section class="hero">
-    <div class="container">
-      <h1>Find what you need</h1>
-      <p>Browse our catalogue, add items to your cart and send your order. We will confirm it with you directly.</p>
-      <form id="search-form" class="search-bar" role="search">
-        <input class="input" id="q" type="search" placeholder="Search products" aria-label="Search products" autocomplete="off" maxlength="80">
-      </form>
+    <div class="container hero-inner">
+      <div class="hero-art" aria-hidden="true">
+        <svg viewBox="0 0 120 120" fill="none" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+          <defs>
+            <linearGradient id="bagStroke" x1="22" y1="14" x2="98" y2="108" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#a78bfa"/><stop offset="1" stop-color="#5b3df0"/>
+            </linearGradient>
+            <linearGradient id="bagFill" x1="60" y1="44" x2="60" y2="106" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#8b6cff" stop-opacity=".18"/><stop offset="1" stop-color="#5b3df0" stop-opacity=".05"/>
+            </linearGradient>
+          </defs>
+          <path d="M28 44h64l6 56a6 6 0 0 1-6 6.5H28a6 6 0 0 1-6-6.5l6-56z" fill="url(#bagFill)" stroke="url(#bagStroke)" stroke-width="2"/>
+          <path d="M44 52V38a16 16 0 0 1 32 0v14" stroke="url(#bagStroke)" stroke-width="2"/>
+          <circle cx="44" cy="52" r="2" fill="url(#bagStroke)"/>
+          <circle cx="76" cy="52" r="2" fill="url(#bagStroke)"/>
+        </svg>
+      </div>
+      <div class="hero-copy">
+        <h1>Find what you need</h1>
+        <p>Browse our catalogue, add items to your cart and send your order. We will confirm it with you directly.</p>
+        <form id="search-form" class="search-bar" role="search">
+          <input class="input" id="q" type="search" placeholder="Search products" aria-label="Search products" autocomplete="off" maxlength="80">
+        </form>
+      </div>
     </div>
   </section>
 
@@ -61,7 +78,7 @@
 
     function showSetupHint() {
       if (SUPABASE_URL.includes('YOUR-PROJECT-REF')) {
-        grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="big"><i class="i i-gear"></i></div>' +
+        grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="big">' + icon('settings', 28) + '</div>' +
           'Setup needed: open <strong>supabase.js</strong> and add your Supabase URL and anon key.</div>';
         return true;
       }
@@ -72,7 +89,7 @@
       if (showSetupHint()) { chips.innerHTML = ''; return; }
       try {
         const settings = await applyBusinessSettings();
-        if (settings) document.title = brandName(settings);
+        if (settings) document.title = settings.business_name;
 
         const [cats, products] = await Promise.all([
           Shop.categories(),
@@ -85,10 +102,10 @@
 
         grid.innerHTML = products.length
           ? products.map(productCardHtml).join('')
-          : '<div class="empty" style="grid-column:1/-1"><div class="big"><i class="i i-box"></i></div>No products available yet. Please check back soon.</div>';
+          : '<div class="empty" style="grid-column:1/-1"><div class="big">' + icon('box', 28) + '</div>No products available yet. Please check back soon.</div>';
       } catch (err) {
         console.error(err);
-        grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="big"><i class="i i-alert"></i></div>' +
+        grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="big">' + icon('alert', 28) + '</div>' +
           'Could not load products. Please refresh the page.</div>';
       }
     }
