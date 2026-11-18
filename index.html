@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>FZ Cart</title>
+  <title>Shop</title>
   <meta name="description" content="Browse our products and place your order online.">
   <meta name="theme-color" content="#6C5CE7">
   <link rel="manifest" href="manifest.json">
@@ -72,7 +72,7 @@
       if (showSetupHint()) { chips.innerHTML = ''; return; }
       try {
         const settings = await applyBusinessSettings();
-        if (settings) document.title = brandName(settings);
+        if (settings) document.title = settings.business_name;
 
         const [cats, products] = await Promise.all([
           Shop.categories(),
