@@ -1,6 +1,6 @@
 {
-  "name": "Shop Admin",
-  "short_name": "Admin",
+  "name": "FZ Cart Admin",
+  "short_name": "FZ Admin",
   "description": "Inventory and order management.",
   "start_url": "admin.html",
   "scope": "./",

@@ -25,6 +25,19 @@
 
   let reloadList = null;   // set while the Orders tab is on screen
 
+  // Ready-made WhatsApp text for the customer, based on the order's current stage.
+  function waText(o) {
+    const n = '#' + o.order_number;
+    let part = `your order ${n} was received.`;
+    if (o.status === 'confirmed' || o.status === 'processing') {
+      part = o.fulfillment_step === 'out_for_delivery' ? `your order ${n} is out for delivery.`
+           : o.fulfillment_step === 'packed' ? `your order ${n} is packed and ready.`
+           : `your order ${n} is accepted and being prepared.`;
+    } else if (o.status === 'completed') part = `your order ${n} was delivered. Thank you!`;
+    else if (o.status === 'rejected' || o.status === 'cancelled') part = `we are sorry, order ${n} could not be completed.`;
+    return `Hi ${o.customer_name}, ${part} - ${BRAND}`;
+  }
+
   function digits(phone) { return String(phone || '').replace(/\D/g, ''); }
 
   function orderDetail(o, onChanged) {
@@ -39,7 +52,7 @@
       ${o.delivery_address ? `<div class="muted" style="white-space:pre-line">${esc(o.delivery_address)}</div>` : '<div class="muted small">No delivery address given</div>'}
       <div class="row wrap mt">
         <a class="btn btn-sm" href="tel:${esc('+'.repeat(/^\+/.test(o.customer_phone)) + digits(o.customer_phone))}"><i class="i i-phone"></i> Call</a>
-        <a class="btn btn-sm" target="_blank" rel="noopener" href="https://wa.me/${esc(digits(o.customer_phone))}">WhatsApp</a>
+        <a class="btn btn-sm" target="_blank" rel="noopener" href="https://wa.me/${esc(digits(o.customer_phone))}?text=${encodeURIComponent(waText(o))}">WhatsApp</a>
       </div>
 
       <h3 class="mt">Items</h3>
