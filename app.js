@@ -65,7 +65,7 @@ function openSheet(title, bodyHtml) {
     <div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
       <div class="sheet-head">
         <h2 style="margin:0">${esc(title)}</h2>
-        <button class="icon-btn" data-close aria-label="Close">&#10005;</button>
+        <button class="icon-btn" data-close aria-label="Close"><i class="i i-close"></i></button>
       </div>
       <div class="sheet-body">${bodyHtml}</div>
     </div>`;
@@ -127,28 +127,40 @@ function productStatusBadge(status) {
 }
 
 /* ---------- Images ---------- */
-/* ---------- Icons: one consistent line style (24px grid, 1.6 stroke, round caps) ---------- */
-const ICONS = {
-  bag: '<path d="M5.5 8h13l1 11.2a1.5 1.5 0 0 1-1.5 1.6H6a1.5 1.5 0 0 1-1.5-1.6L5.5 8z"/><path d="M9 8V6.8a3 3 0 0 1 6 0V8"/>',
-  search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
-  box: '<path d="M3.5 7.5L12 3l8.5 4.5v9L12 21l-8.5-4.5v-9z"/><path d="M3.5 7.5L12 12l8.5-4.5"/><path d="M12 12v9"/>',
-  image: '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10.5" r="1.5"/><path d="M20.5 16l-4.5-4.5L8 19"/>',
-  alert: '<path d="M12 4l9 15.5H3L12 4z"/><path d="M12 10v4"/><path d="M12 17h.01"/>',
-  settings: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
-  left: '<path d="M14.5 6l-6 6 6 6"/>',
-  right: '<path d="M9.5 6l6 6-6 6"/>'
-};
-function icon(name, size = 24) {
-  return `<svg class="ico-svg" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${ICONS[name] || ''}</svg>`;
-}
-
 function productImage(url, alt = '', cls = 'thumb') {
-  if (!url) return `<div class="thumb-empty ${cls === 'thumb' ? '' : ''}" aria-hidden="true">${icon('image', 34)}</div>`;
+  if (!url) return `<div class="thumb-empty ${cls === 'thumb' ? '' : ''}" aria-hidden="true"><i class="i i-camera"></i></div>`;
   return `<img class="${esc(cls)}" src="${esc(url)}" alt="${esc(alt)}" loading="lazy" decoding="async">`;
 }
 
+/* ---------- Brand ---------- */
+const BRAND = 'FZ Cart';
+// The name comes from the admin Settings tab. The old default "My Business" is replaced by the brand name.
+function brandName(s) {
+  const n = String(s?.business_name || '').trim();
+  return !n || /^my business$/i.test(n) ? BRAND : n;
+}
+
+/* ---------- Theme (light / dark) ---------- */
+// The initial theme is applied by a tiny inline script in each page's <head>.
+document.addEventListener('click', e => {
+  if (!e.target.closest('.theme-toggle')) return;
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  try { localStorage.setItem('theme', next); } catch { /* ignore */ }
+});
+
 /* ---------- Customer header / footer ---------- */
-function renderSiteHeader(active = '') {
+// step: 1 = Cart, 2 = Checkout, 3 = Confirmation, 4 = all done. Omit to hide the step indicator.
+function stepsHtml(step) {
+  const labels = ['Cart', 'Checkout', 'Confirmation'];
+  return '<div class="steps" aria-label="Checkout progress">' + labels.map((l, i) => {
+    const n = i + 1, cls = n < step ? 'done' : n === step ? 'active' : '';
+    return (i ? `<span class="sep ${n <= step ? 'done' : ''}"></span>` : '') +
+      `<span class="step ${cls}"><span class="dot">${n < step ? '<i class="i i-check"></i>' : n}</span><span class="step-label">${l}</span></span>`;
+  }).join('') + '</div>';
+}
+
+function renderSiteHeader(active = '', step = 0) {
   const host = $('#site-header');
   if (!host) return;
   const link = (href, label, key) =>
@@ -156,38 +168,40 @@ function renderSiteHeader(active = '') {
   host.className = 'site-header';
   host.innerHTML = `
     <div class="container">
-      <a class="brand" href="index.html" id="brand-name">Shop</a>
+      <a class="brand" href="index.html"><span class="logo"><img src="icons/icon-192.png" alt="" width="44" height="44"></span><span id="brand-name">${esc(BRAND)}</span></a>
       <nav class="nav-links" aria-label="Main">
         ${link('index.html', 'Home', 'home')}
         ${link('products.html', 'Products', 'products')}
+        ${link('orders.html', 'My orders', 'orders')}
       </nav>
       <span class="spacer"></span>
+      ${step ? stepsHtml(step) + '<span class="spacer"></span>' : ''}
+      <a class="icon-btn" href="products.html" aria-label="Search products"><i class="i i-search"></i></a>
+      <a class="icon-btn" href="orders.html" aria-label="My orders"><i class="i i-orders"></i></a>
+      <button class="icon-btn theme-toggle" type="button" aria-label="Switch light or dark theme"><i class="i i-moon"></i><i class="i i-sun"></i></button>
       <a class="icon-btn cart-link" href="cart.html" aria-label="Cart">
-        ${icon('bag', 22)}<span class="cart-count" id="cart-count" data-n="0"></span>
+        <i class="i i-bag"></i><span class="cart-count" id="cart-count" data-n="0"></span>
       </a>
     </div>`;
-  updateCartBadge();
+  const lg = $('.brand .logo img', host);
+  if (lg) lg.addEventListener('error', () => { lg.outerHTML = '<i class="i i-bag"></i>'; });   // icon file missing: show a bag
+  updateCartBadge(true);
 }
 
-var lastCartN = null;   // previous cart size, so only an increase animates
-function updateCartBadge() {
+let _lastCartCount = null;
+function updateCartBadge(initial) {
   const el = $('#cart-count');
   if (!el) return;
   const n = Shop.cart.count();
   el.textContent = n > 0 ? (n > 99 ? '99+' : n) : '';
   el.dataset.n = String(n);
-  if (lastCartN !== null && n > lastCartN) {
-    const link = el.closest('.cart-link');
-    if (link) {
-      link.classList.remove('bump');
-      void link.offsetWidth;          // restart the CSS animation
-      link.classList.add('bump');
-    }
+  if (initial !== true && _lastCartCount !== null && n !== _lastCartCount && n > 0) {
+    el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
   }
-  lastCartN = n;
+  _lastCartCount = n;
 }
-window.addEventListener('cart-changed', updateCartBadge);
-window.addEventListener('storage', updateCartBadge);   // cart changed in another tab
+window.addEventListener('cart-changed', () => updateCartBadge());
+window.addEventListener('storage', () => updateCartBadge());   // cart changed in another tab
 
 // Loads business settings, sets name/title/footer. Never throws; the site still works without it.
 async function applyBusinessSettings() {
@@ -195,13 +209,13 @@ async function applyBusinessSettings() {
     const s = await Shop.settings();
     if (!s) return null;
     const brand = $('#brand-name');
-    if (brand) brand.textContent = s.business_name;
+    if (brand) brand.textContent = brandName(s);
     const foot = $('#site-footer');
     if (foot) {
       foot.className = 'site-footer';
       foot.innerHTML = `
         <div class="container">
-          <strong>${esc(s.business_name)}</strong>
+          <strong>${esc(brandName(s))}</strong>
           ${s.contact_phone ? `<div>Call us: <a href="tel:${esc(s.contact_phone.replace(/[^+\d]/g, ''))}">${esc(s.contact_phone)}</a></div>` : ''}
           <div class="small" style="margin-top:8px">Orders are confirmed by our team. No online payment needed.</div>
         </div>`;
