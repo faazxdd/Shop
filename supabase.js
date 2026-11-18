@@ -170,14 +170,19 @@ const Shop = {
     KEY: 'my_orders_v1',
     get() { try { return JSON.parse(localStorage.getItem(this.KEY)) || []; } catch { return []; } },
     save(list) { try { localStorage.setItem(this.KEY, JSON.stringify(list.slice(0, 20))); } catch { /* storage unavailable */ } },
-    add(n, p) { this.save([{ n: String(n), p }, ...this.get().filter(x => String(x.n) !== String(n))]); },
+    // extra = { t: total, d: date } kept locally so the order still shows even if live tracking is unreachable
+    add(n, p, extra) { this.save([{ n: String(n), p, ...(extra || {}) }, ...this.get().filter(x => String(x.n) !== String(n))]); },
     remove(n) { this.save(this.get().filter(x => String(x.n) !== String(n))); }
   },
 
   // Looks up orders by order number + phone (server function, no login needed).
   async trackOrders(lookups) {
     if (!lookups.length) return [];
-    return throwIfError(await sb.rpc('track_orders', { p_lookups: lookups })) || [];
+    const { data, error } = await sb.rpc('track_orders', { p_lookups: lookups.map(l => ({ n: l.n, p: l.p })) });
+    if (error) { console.error('track_orders failed', error); throw new Error(errMsg(error)); }
+    let rows = data;
+    if (typeof rows === 'string') { try { rows = JSON.parse(rows); } catch { rows = []; } }
+    return Array.isArray(rows) ? rows : (rows ? [rows] : []);
   },
 
   async placeOrder({ name, phone, address }) {
@@ -193,10 +198,17 @@ const Shop = {
     if (error) throw new Error(friendlyOrderError(error));
     sessionStorage.removeItem('checkout_key');
     Shop.cart.clear();
+    // The server may return an object, a one-row array or a JSON string; accept all.
+    let result = data;
+    if (typeof result === 'string') { try { result = JSON.parse(result); } catch { result = null; } }
+    if (Array.isArray(result)) result = result[0];
+    result = result || {};
+    const num = result.order_number ?? result.number ?? result.order_no;
+    if (num != null) result.order_number = num;
     // Remember the confirmation so orders.html can show it after redirect.
-    try { sessionStorage.setItem('last_order', JSON.stringify(data)); } catch { /* ignore */ }
-    if (data?.order_number) Shop.myOrders.add(data.order_number, phone);
-    return data;   // { order_id, order_number, total, duplicate }
+    try { sessionStorage.setItem('last_order', JSON.stringify(result)); } catch { /* ignore */ }
+    if (num != null) Shop.myOrders.add(num, phone, { t: result.total, d: new Date().toISOString() });
+    return result;   // { order_id, order_number, total, duplicate }
   }
 };
 

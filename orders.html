@@ -107,7 +107,11 @@
           : '<div class="empty">We could not find your saved orders.</div>';
       } catch (err) {
         console.error(err);
-        if (firstLoad) listEl.innerHTML = `<div class="empty"><div class="big"><i class="i i-alert"></i></div>Could not load your orders. Please refresh the page.</div>`;
+        if (firstLoad) {
+          // Live tracking unreachable: still show the orders saved on this device.
+          listEl.innerHTML = `<div class="order-status-msg bad">Live status is unavailable right now. Pull to refresh in a moment.<br><small>${esc(errMsg(err))}</small></div>` +
+            lookups.map(l => orderCard({ order_number: l.n, created_at: l.d || '', total: l.t || 0, status: 'pending', items: [] })).join('');
+        }
       }
       firstLoad = false;
     }
