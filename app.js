@@ -65,7 +65,7 @@ function openSheet(title, bodyHtml) {
     <div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
       <div class="sheet-head">
         <h2 style="margin:0">${esc(title)}</h2>
-        <button class="icon-btn" data-close aria-label="Close">&#10005;</button>
+        <button class="icon-btn" data-close aria-label="Close"><i class="i i-close"></i></button>
       </div>
       <div class="sheet-body">${bodyHtml}</div>
     </div>`;
@@ -128,12 +128,31 @@ function productStatusBadge(status) {
 
 /* ---------- Images ---------- */
 function productImage(url, alt = '', cls = 'thumb') {
-  if (!url) return `<div class="thumb-empty ${cls === 'thumb' ? '' : ''}" aria-hidden="true">&#128247;</div>`;
+  if (!url) return `<div class="thumb-empty ${cls === 'thumb' ? '' : ''}" aria-hidden="true"><i class="i i-camera"></i></div>`;
   return `<img class="${esc(cls)}" src="${esc(url)}" alt="${esc(alt)}" loading="lazy" decoding="async">`;
 }
 
+/* ---------- Theme (light / dark) ---------- */
+// The initial theme is applied by a tiny inline script in each page's <head>.
+document.addEventListener('click', e => {
+  if (!e.target.closest('.theme-toggle')) return;
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  try { localStorage.setItem('theme', next); } catch { /* ignore */ }
+});
+
 /* ---------- Customer header / footer ---------- */
-function renderSiteHeader(active = '') {
+// step: 1 = Cart, 2 = Checkout, 3 = Confirmation, 4 = all done. Omit to hide the step indicator.
+function stepsHtml(step) {
+  const labels = ['Cart', 'Checkout', 'Confirmation'];
+  return '<div class="steps" aria-label="Checkout progress">' + labels.map((l, i) => {
+    const n = i + 1, cls = n < step ? 'done' : n === step ? 'active' : '';
+    return (i ? `<span class="sep ${n <= step ? 'done' : ''}"></span>` : '') +
+      `<span class="step ${cls}"><span class="dot">${n < step ? '<i class="i i-check"></i>' : n}</span><span class="step-label">${l}</span></span>`;
+  }).join('') + '</div>';
+}
+
+function renderSiteHeader(active = '', step = 0) {
   const host = $('#site-header');
   if (!host) return;
   const link = (href, label, key) =>
@@ -141,28 +160,36 @@ function renderSiteHeader(active = '') {
   host.className = 'site-header';
   host.innerHTML = `
     <div class="container">
-      <a class="brand" href="index.html" id="brand-name">Shop</a>
+      <a class="brand" href="index.html"><span class="logo"><i class="i i-bag"></i></span><span id="brand-name">Shop</span></a>
       <nav class="nav-links" aria-label="Main">
         ${link('index.html', 'Home', 'home')}
         ${link('products.html', 'Products', 'products')}
       </nav>
       <span class="spacer"></span>
+      ${step ? stepsHtml(step) + '<span class="spacer"></span>' : ''}
+      <a class="icon-btn" href="products.html" aria-label="Search products"><i class="i i-search"></i></a>
+      <button class="icon-btn theme-toggle" type="button" aria-label="Switch light or dark theme"><i class="i i-moon"></i><i class="i i-sun"></i></button>
       <a class="icon-btn cart-link" href="cart.html" aria-label="Cart">
-        &#128722;<span class="cart-count" id="cart-count" data-n="0"></span>
+        <i class="i i-bag"></i><span class="cart-count" id="cart-count" data-n="0"></span>
       </a>
     </div>`;
-  updateCartBadge();
+  updateCartBadge(true);
 }
 
-function updateCartBadge() {
+let _lastCartCount = null;
+function updateCartBadge(initial) {
   const el = $('#cart-count');
   if (!el) return;
   const n = Shop.cart.count();
   el.textContent = n > 0 ? (n > 99 ? '99+' : n) : '';
   el.dataset.n = String(n);
+  if (initial !== true && _lastCartCount !== null && n !== _lastCartCount && n > 0) {
+    el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+  }
+  _lastCartCount = n;
 }
-window.addEventListener('cart-changed', updateCartBadge);
-window.addEventListener('storage', updateCartBadge);   // cart changed in another tab
+window.addEventListener('cart-changed', () => updateCartBadge());
+window.addEventListener('storage', () => updateCartBadge());   // cart changed in another tab
 
 // Loads business settings, sets name/title/footer. Never throws; the site still works without it.
 async function applyBusinessSettings() {

@@ -91,7 +91,7 @@
 
   /* ---------- Tab ---------- */
   Tabs.push({
-    key: 'reports', order: 4, label: 'Reports', ico: '&#128196;',
+    key: 'reports', order: 4, label: 'Reports', ico: '<i class="i i-report"></i>',
     async render(el) {
       const today = new Date();
       const start = new Date(today); start.setDate(start.getDate() - 29);
@@ -109,7 +109,7 @@
           <h2>Download reports</h2>
           <p class="help">CSV files open in Excel and Google Sheets. Order reports use the date range above.</p>
           <div class="row wrap" id="downloads">
-            ${REPORTS.map(r => `<button class="btn btn-sm" data-r="${r.key}">&#11015; ${esc(r.label)}${r.needsRange ? ' *' : ''}</button>`).join('')}
+            ${REPORTS.map(r => `<button class="btn btn-sm" data-r="${r.key}"><i class="i i-download"></i> ${esc(r.label)}${r.needsRange ? ' *' : ''}</button>`).join('')}
           </div>
           <p class="help">* uses the date range</p>
         </div>

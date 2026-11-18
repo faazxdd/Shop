@@ -4,10 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Your cart</title>
-  <meta name="theme-color" content="#1f4fd8">
+  <meta name="theme-color" content="#6C5CE7">
   <meta name="robots" content="noindex">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script>try{var t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -24,7 +25,7 @@
   <script src="supabase.js"></script>
   <script src="app.js"></script>
   <script>
-    renderSiteHeader('');
+    renderSiteHeader('cart', 1);
     applyBusinessSettings();
 
     const content = $('#content');
@@ -36,7 +37,7 @@
 
     async function load() {
       if (SUPABASE_URL.includes('YOUR-PROJECT-REF')) {
-        content.innerHTML = '<div class="empty"><div class="big">&#9881;</div>Setup needed: add your Supabase URL and anon key in <strong>supabase.js</strong>.</div>';
+        content.innerHTML = '<div class="empty"><div class="big"><i class="i i-gear"></i></div>Setup needed: add your Supabase URL and anon key in <strong>supabase.js</strong>.</div>';
         return;
       }
       try {
@@ -51,7 +52,7 @@
         render();
       } catch (err) {
         console.error(err);
-        content.innerHTML = '<div class="empty"><div class="big">&#9888;</div>Could not load your cart. Please refresh the page.</div>';
+        content.innerHTML = '<div class="empty"><div class="big"><i class="i i-alert"></i></div>Could not load your cart. Please refresh the page.</div>';
       }
     }
 
@@ -61,47 +62,72 @@
 
     function render() {
       if (!lines.length) {
-        content.innerHTML = `<div class="empty"><div class="big">&#128722;</div>Your cart is empty.
+        content.innerHTML = `<div class="empty"><div class="big"><i class="i i-bag"></i></div>Your cart is empty.
           <div class="mt"><a class="btn btn-primary" href="products.html">Browse products</a></div></div>`;
         return;
       }
 
       const hasOut = lines.some(l => l.product.stock_status === 'out_of_stock');
+      const count = lines.reduce((n, l) => n + l.quantity, 0);
 
       content.innerHTML = `
-        <div class="detail" style="gap:24px">
+        <div class="cart-layout">
           <section aria-label="Cart items">
-            ${lines.map(l => `
-              <div class="cart-line" data-id="${esc(l.product_id)}">
-                ${productImage(l.product.images?.[0], l.product.name, '')}
-                <div class="meta">
-                  <div class="row between" style="align-items:flex-start">
-                    <a href="products.html?id=${encodeURIComponent(l.product_id)}" style="color:inherit;font-weight:600">${esc(l.product.name)}</a>
-                    <button class="icon-btn" data-remove aria-label="Remove ${esc(l.product.name)}" style="width:36px;height:36px">&#10005;</button>
-                  </div>
-                  <div class="muted small">${money(l.product.selling_price)} each ${l.product.stock_status === 'out_of_stock' ? '&middot; <span style="color:var(--danger)">Out of stock</span>' : ''}</div>
-                  <div class="row between">
-                    <div class="qty">
-                      <button type="button" data-minus aria-label="Decrease quantity">&minus;</button>
-                      <span>${l.quantity}</span>
-                      <button type="button" data-plus aria-label="Increase quantity">+</button>
+            <div class="card">
+              <div class="row between card-head">
+                <h2>Cart <span class="count-pill">${count}</span></h2>
+                <button type="button" class="link-danger" data-clear>Clear cart</button>
+              </div>
+              ${lines.map(l => `
+                <div class="cart-line" data-id="${esc(l.product_id)}">
+                  ${productImage(l.product.images?.[0], l.product.name, '')}
+                  <div class="meta">
+                    <div class="line-top">
+                      <div>
+                        <a class="line-name" href="products.html?id=${encodeURIComponent(l.product_id)}">${esc(l.product.name)}</a>
+                        <div class="muted small">${esc(l.product.category_name || '')}${l.product.category_name ? ' &middot; ' : ''}${money(l.product.selling_price)} each
+                          ${l.product.stock_status === 'out_of_stock' ? '&middot; <span style="color:var(--danger)">Out of stock</span>' : ''}</div>
+                      </div>
+                      <button class="icon-btn line-remove" data-remove aria-label="Remove ${esc(l.product.name)}"><i class="i i-close"></i></button>
                     </div>
-                    <strong>${money(Number(l.product.selling_price) * l.quantity)}</strong>
+                    <div class="line-bottom">
+                      <div class="qty">
+                        <button type="button" data-minus aria-label="Decrease quantity">&minus;</button>
+                        <span>${l.quantity}</span>
+                        <button type="button" data-plus aria-label="Increase quantity">+</button>
+                      </div>
+                      <strong class="line-price">${money(Number(l.product.selling_price) * l.quantity)}</strong>
+                    </div>
                   </div>
-                </div>
-              </div>`).join('')}
+                </div>`).join('')}
+            </div>
+
+            <div class="promo-banner">
+              <div>
+                <span class="eyebrow">New arrivals</span>
+                <h3>Fresh picks just landed</h3>
+                <p>Take a look at the latest products in our catalogue.</p>
+              </div>
+              <a class="btn btn-light" href="products.html">Shop now</a>
+            </div>
           </section>
 
-          <section aria-label="Order summary and details">
+          <aside aria-label="Order summary and details">
             <div class="card">
-              <h2>Order summary</h2>
-              <div class="summary-row"><span>Items</span><span>${lines.reduce((n, l) => n + l.quantity, 0)}</span></div>
-              <div class="summary-row summary-total"><span>Total</span><span id="total">${money(total())}</span></div>
-              <p class="help">Final prices are confirmed by the shop when your order is received. No online payment needed.</p>
+              <h2>Promo code</h2>
+              <form class="row promo" id="promo" novalidate>
+                <input class="input" name="code" placeholder="Enter code" maxlength="30" autocomplete="off" aria-label="Promo code">
+                <button class="btn btn-primary" type="submit">Apply</button>
+              </form>
             </div>
 
             <form class="card mt" id="checkout" novalidate>
-              <h2>Your details</h2>
+              <h2>Order summary</h2>
+              <div class="summary-row"><span>Subtotal (${count} item${count === 1 ? '' : 's'})</span><span>${money(total())}</span></div>
+              <div class="summary-row"><span>Discount</span><span class="minus">- ${money(0)}</span></div>
+              <div class="summary-row summary-total"><span>Total</span><span id="total">${money(total())}</span></div>
+
+              <h3 class="mt">Your details</h3>
               <label class="field"><span>Name *</span>
                 <input class="input" name="name" autocomplete="name" maxlength="100" required>
                 <div class="error-text" data-err="name" hidden></div>
@@ -114,14 +140,20 @@
                 <textarea class="input" name="address" maxlength="300" autocomplete="street-address"></textarea>
               </label>
               ${hasOut ? '<p class="error-text">Please remove out-of-stock items to continue.</p>' : ''}
-              <button class="btn btn-primary btn-block" type="submit" id="place" ${hasOut ? 'disabled' : ''}>Place order</button>
+              <button class="btn btn-primary btn-block btn-lg" type="submit" id="place" ${hasOut ? 'disabled' : ''}>Continue to checkout</button>
+              <p class="help">Final prices are confirmed by the shop when your order is received. No online payment needed.</p>
             </form>
-          </section>
+          </aside>
         </div>`;
     }
 
     /* ---------- Cart line actions (event delegation) ---------- */
-    content.addEventListener('click', e => {
+    content.addEventListener('click', async e => {
+      if (e.target.closest('[data-clear]')) {
+        if (!(await confirmDialog('Remove all items from your cart?', 'Clear cart', true))) return;
+        Shop.cart.clear(); lines = []; render();
+        return;
+      }
       const row = e.target.closest('.cart-line');
       if (!row) return;
       const id = row.dataset.id;
@@ -133,9 +165,20 @@
       else if (e.target.closest('[data-plus]')) line.quantity = Math.min(999, line.quantity + 1);
       else return;
 
-      Shop.cart.setQty(id, line.quantity);
-      if (line.quantity <= 0) lines = lines.filter(l => l.product_id !== id);
-      keepFormValues(render);
+      const apply = () => {
+        Shop.cart.setQty(id, line.quantity);
+        if (line.quantity <= 0) lines = lines.filter(l => l.product_id !== id);
+        keepFormValues(render);
+      };
+      if (line.quantity <= 0) { row.classList.add('leaving'); setTimeout(apply, 220); }
+      else apply();
+    });
+
+    // Promo codes are not connected to the database yet.
+    content.addEventListener('submit', e => {
+      if (e.target.id !== 'promo') return;
+      e.preventDefault();
+      toast('Promo codes are not available yet', 'error');
     });
 
     // Re-render without losing what the customer already typed.

@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Shop</title>
   <meta name="description" content="Browse our products and place your order online.">
-  <meta name="theme-color" content="#1f4fd8">
+  <meta name="theme-color" content="#6C5CE7">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script>try{var t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -60,7 +61,7 @@
 
     function showSetupHint() {
       if (SUPABASE_URL.includes('YOUR-PROJECT-REF')) {
-        grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="big">&#9881;</div>' +
+        grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="big"><i class="i i-gear"></i></div>' +
           'Setup needed: open <strong>supabase.js</strong> and add your Supabase URL and anon key.</div>';
         return true;
       }
@@ -84,10 +85,10 @@
 
         grid.innerHTML = products.length
           ? products.map(productCardHtml).join('')
-          : '<div class="empty" style="grid-column:1/-1"><div class="big">&#128230;</div>No products available yet. Please check back soon.</div>';
+          : '<div class="empty" style="grid-column:1/-1"><div class="big"><i class="i i-box"></i></div>No products available yet. Please check back soon.</div>';
       } catch (err) {
         console.error(err);
-        grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="big">&#9888;</div>' +
+        grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="big"><i class="i i-alert"></i></div>' +
           'Could not load products. Please refresh the page.</div>';
       }
     }

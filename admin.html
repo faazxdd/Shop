@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Admin</title>
   <meta name="robots" content="noindex,nofollow">
-  <meta name="theme-color" content="#1f4fd8">
+  <meta name="theme-color" content="#6C5CE7">
   <link rel="manifest" href="admin-manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script>try{var t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="admin-body">
@@ -27,6 +28,7 @@
     <header class="admin-top">
       <strong id="top-title">Admin</strong>
       <span class="spacer"></span>
+      <button class="icon-btn theme-toggle" type="button" aria-label="Switch light or dark theme"><i class="i i-moon"></i><i class="i i-sun"></i></button>
       <button class="btn btn-sm" id="signout">Sign out</button>
     </header>
     <nav class="admin-nav" id="nav" aria-label="Admin sections"></nav>
@@ -60,7 +62,7 @@
 
     /* =========================== DASHBOARD =========================== */
     Tabs.push({
-      key: 'dashboard', order: 1, label: 'Dashboard', ico: '&#128202;',
+      key: 'dashboard', order: 1, label: 'Dashboard', ico: '<i class="i i-chart"></i>',
       async render(el) {
         el.innerHTML = '<div class="stats"><div class="skeleton" style="min-height:80px"></div><div class="skeleton" style="min-height:80px"></div></div>';
         const s = await Admin.summary();
@@ -84,7 +86,7 @@
 
     /* =========================== PRODUCTS =========================== */
     Tabs.push({
-      key: 'products', order: 2, label: 'Products', ico: '&#128230;',
+      key: 'products', order: 2, label: 'Products', ico: '<i class="i i-box"></i>',
       async render(el) {
         el.innerHTML = `
           <div class="toolbar">
@@ -102,7 +104,7 @@
             const rows = await Admin.products({ search: $('#p-search').value, status: $('#p-status').value, stock: $('#p-stock').value });
             list.innerHTML = rows.length ? rows.map(p => `
               <div class="card list-card" data-id="${esc(p.id)}">
-                ${p.images?.[0] ? `<img class="thumb-sm" src="${esc(p.images[0])}" alt="" loading="lazy">` : '<div class="thumb-sm thumb-empty" style="font-size:1.2rem">&#128247;</div>'}
+                ${p.images?.[0] ? `<img class="thumb-sm" src="${esc(p.images[0])}" alt="" loading="lazy">` : '<div class="thumb-sm thumb-empty" style="font-size:1.2rem"><i class="i i-camera"></i></div>'}
                 <div class="grow">
                   <div class="title">${esc(p.name)}</div>
                   <div class="muted small">${esc(p.sku || 'No SKU')} &middot; ${esc(p.categories?.name || 'No category')}</div>
@@ -116,7 +118,7 @@
                   <button class="btn btn-sm" data-stock>Stock</button>
                   <button class="btn btn-sm" data-edit>Edit</button>
                 </div>
-              </div>`).join('') : '<div class="empty"><div class="big">&#128230;</div>No products found.</div>';
+              </div>`).join('') : '<div class="empty"><div class="big"><i class="i i-box"></i></div>No products found.</div>';
             list._rows = Object.fromEntries(rows.map(p => [p.id, p]));
           } catch (err) { list.innerHTML = `<div class="empty">${esc(errMsg(err))}</div>`; }
         }
@@ -173,7 +175,7 @@
 
       const grid = $('#imgs', body);
       function drawImgs() {
-        grid.innerHTML = images.map((u, i) => `<div class="image-tile"><img src="${esc(u)}" alt=""><button type="button" data-rm="${i}" aria-label="Remove photo">&#10005;</button></div>`).join('');
+        grid.innerHTML = images.map((u, i) => `<div class="image-tile"><img src="${esc(u)}" alt=""><button type="button" data-rm="${i}" aria-label="Remove photo"><i class="i i-close"></i></button></div>`).join('');
       }
       drawImgs();
       grid.onclick = e => { const b = e.target.closest('[data-rm]'); if (b) { images.splice(Number(b.dataset.rm), 1); drawImgs(); } };
@@ -256,7 +258,7 @@
     /* ---------- Boot: decide login vs app ---------- */
     async function boot() {
       if (SUPABASE_URL.includes('YOUR-PROJECT-REF')) {
-        document.body.innerHTML = '<div class="empty"><div class="big">&#9881;</div>Setup needed: add your Supabase URL and anon key in <strong>supabase.js</strong>.</div>';
+        document.body.innerHTML = '<div class="empty"><div class="big"><i class="i i-gear"></i></div>Setup needed: add your Supabase URL and anon key in <strong>supabase.js</strong>.</div>';
         return;
       }
       const ok = await Auth.requireAdmin();

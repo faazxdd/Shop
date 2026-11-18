@@ -147,7 +147,7 @@ const Shop = {
     if (!items.length) return [];
     const ids = items.map(i => i.product_id);
     const rows = throwIfError(
-      await sb.from('public_products').select('id,name,images,selling_price,stock_status').in('id', ids)
+      await sb.from('public_products').select('id,name,images,selling_price,category_name,stock_status').in('id', ids)
     );
     const byId = Object.fromEntries(rows.map(r => [r.id, r]));
     return items

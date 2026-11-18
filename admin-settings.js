@@ -60,7 +60,7 @@
 
   /* ---------- Tab ---------- */
   Tabs.push({
-    key: 'settings', order: 5, label: 'Settings', ico: '&#9881;',
+    key: 'settings', order: 5, label: 'Settings', ico: '<i class="i i-gear"></i>',
     async render(el) {
       const settings = (await Shop.settings()) || {};
       el.innerHTML = `

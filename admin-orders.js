@@ -29,7 +29,7 @@
       <div class="muted">${esc(o.customer_phone)}</div>
       ${o.delivery_address ? `<div class="muted" style="white-space:pre-line">${esc(o.delivery_address)}</div>` : '<div class="muted small">No delivery address given</div>'}
       <div class="row wrap mt">
-        <a class="btn btn-sm" href="tel:${esc('+'.repeat(/^\+/.test(o.customer_phone)) + digits(o.customer_phone))}">&#128222; Call</a>
+        <a class="btn btn-sm" href="tel:${esc('+'.repeat(/^\+/.test(o.customer_phone)) + digits(o.customer_phone))}"><i class="i i-phone"></i> Call</a>
         <a class="btn btn-sm" target="_blank" rel="noopener" href="https://wa.me/${esc(digits(o.customer_phone))}">WhatsApp</a>
       </div>
 
@@ -64,7 +64,7 @@
   }
 
   Tabs.push({
-    key: 'orders', order: 3, label: 'Orders', ico: '&#128221;',
+    key: 'orders', order: 3, label: 'Orders', ico: '<i class="i i-orders"></i>',
     async render(el) {
       let status = '';
       el.innerHTML = `
@@ -84,7 +84,7 @@
                 <div class="muted small">${esc(o.customer_phone)} &middot; ${(o.order_items || []).length} item(s) &middot; ${esc(fmtDate(o.created_at))}</div>
                 <div><strong>${money(o.total)}</strong></div>
               </div>
-            </div>`).join('') : '<div class="empty"><div class="big">&#128221;</div>No orders here yet.</div>';
+            </div>`).join('') : '<div class="empty"><div class="big"><i class="i i-orders"></i></div>No orders here yet.</div>';
         } catch (err) { list.innerHTML = `<div class="empty">${esc(errMsg(err))}</div>`; }
       }
       reloadList = load;
