@@ -215,7 +215,7 @@
         await withBusy($('#place'), async () => {
           await Shop.placeOrder({ name, phone, address });
         });
-        location.href = 'orders.html';
+        location.href = 'orders.html#placed';
       } catch (err) {
         toast(errMsg(err), 'error');
         // Stock may have changed; refresh the cart view.

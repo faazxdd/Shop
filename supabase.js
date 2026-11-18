@@ -165,6 +165,21 @@ const Shop = {
     return key;
   },
 
+  /* Orders this device placed (number + phone), so the customer can follow them without an account. */
+  myOrders: {
+    KEY: 'my_orders_v1',
+    get() { try { return JSON.parse(localStorage.getItem(this.KEY)) || []; } catch { return []; } },
+    save(list) { try { localStorage.setItem(this.KEY, JSON.stringify(list.slice(0, 20))); } catch { /* storage unavailable */ } },
+    add(n, p) { this.save([{ n: String(n), p }, ...this.get().filter(x => String(x.n) !== String(n))]); },
+    remove(n) { this.save(this.get().filter(x => String(x.n) !== String(n))); }
+  },
+
+  // Looks up orders by order number + phone (server function, no login needed).
+  async trackOrders(lookups) {
+    if (!lookups.length) return [];
+    return throwIfError(await sb.rpc('track_orders', { p_lookups: lookups })) || [];
+  },
+
   async placeOrder({ name, phone, address }) {
     const items = Shop.cart.get();
     if (!items.length) throw new Error('Your cart is empty');
@@ -180,6 +195,7 @@ const Shop = {
     Shop.cart.clear();
     // Remember the confirmation so orders.html can show it after redirect.
     try { sessionStorage.setItem('last_order', JSON.stringify(data)); } catch { /* ignore */ }
+    if (data?.order_number) Shop.myOrders.add(data.order_number, phone);
     return data;   // { order_id, order_number, total, duplicate }
   }
 };
@@ -280,6 +296,11 @@ const Admin = {
     if (from) q = q.gte('created_at', from);
     if (to) q = q.lte('created_at', to);
     return throwIfError(await q);
+  },
+
+  // step: 'packed' | 'out_for_delivery' | null (back to just "accepted")
+  async setFulfillment(orderId, step) {
+    throwIfError(await sb.rpc('admin_set_fulfillment', { p_order_id: String(orderId), p_step: step || null }));
   },
 
   async setOrderStatus(orderId, status) {

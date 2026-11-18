@@ -10,9 +10,18 @@
   // Allowed next steps per status (the database enforces the same rules).
   const ACTIONS = {
     pending:    [['confirmed', 'Accept', 'btn-success'], ['rejected', 'Reject', 'btn-danger']],
-    confirmed:  [['processing', 'Mark processing', 'btn-primary'], ['completed', 'Complete', 'btn-success'], ['cancelled', 'Cancel order', 'btn-danger']],
-    processing: [['completed', 'Complete', 'btn-success'], ['cancelled', 'Cancel order', 'btn-danger']]
+    confirmed:  [['completed', 'Mark delivered', 'btn-success'], ['cancelled', 'Cancel order', 'btn-danger']],
+    processing: [['completed', 'Mark delivered', 'btn-success'], ['cancelled', 'Cancel order', 'btn-danger']]
   };
+
+  // Delivery steps the customer sees on their Orders page (only while the order is accepted).
+  const STEPS = [['', 'Accepted'], ['packed', 'Packed'], ['out_for_delivery', 'Out for delivery']];
+  const STEP_LABEL = { packed: 'Packed', out_for_delivery: 'Out for delivery' };
+  const canStep = o => o.status === 'confirmed' || o.status === 'processing';
+  function stageBadge(o) {
+    return canStep(o) && o.fulfillment_step
+      ? `<span class="badge badge-primary">${esc(STEP_LABEL[o.fulfillment_step] || o.fulfillment_step)}</span>` : statusBadge(o.status);
+  }
 
   let reloadList = null;   // set while the Orders tab is on screen
 
@@ -40,10 +49,30 @@
       </table></div>
       <div class="summary-row summary-total"><span>Total</span><span>${money(o.total)}</span></div>
 
+      ${canStep(o) ? `<h3 class="mt">Delivery progress</h3>
+        <div class="row wrap" id="steps">${STEPS.map(([v, l]) => `<button class="btn btn-sm ${(o.fulfillment_step || '') === v ? 'btn-primary' : ''}" data-step="${v}">${l}</button>`).join('')}</div>
+        <p class="help">Customers see this live on their Orders page.</p>` : ''}
+
       ${actions.length ? `<div class="row wrap mt" id="actions">${actions.map(a => `<button class="btn ${a[2]}" data-status="${a[0]}">${esc(a[1])}</button>`).join('')}</div>
         <p class="help">Stock stays reserved while an order is open. Completing deducts it; rejecting or cancelling releases it.</p>`
         : '<p class="help mt">This order is closed.</p>'}
     `);
+
+    const stepBox = $('#steps', body);
+    if (stepBox) stepBox.onclick = async e => {
+      const btn = e.target.closest('[data-step]');
+      if (!btn) return;
+      const step = btn.dataset.step || null;
+      await withBusy(btn, async () => {
+        try {
+          await Admin.setFulfillment(o.id, step);
+          o.fulfillment_step = step;
+          $$('[data-step]', stepBox).forEach(b => b.classList.toggle('btn-primary', (b.dataset.step || '') === (step || '')));
+          toast('Customer can now see: ' + (step ? STEP_LABEL[step] : 'Accepted'), 'success');
+          onChanged();
+        } catch (err) { toast(errMsg(err), 'error'); }
+      });
+    };
 
     const box = $('#actions', body);
     if (box) box.onclick = async e => {
@@ -80,7 +109,7 @@
           list.innerHTML = rows.length ? rows.map(o => `
             <div class="card list-card" data-id="${esc(o.id)}" style="cursor:pointer">
               <div class="grow">
-                <div class="row between"><div class="title">#${esc(o.order_number)} &middot; ${esc(o.customer_name)}</div>${statusBadge(o.status)}</div>
+                <div class="row between"><div class="title">#${esc(o.order_number)} &middot; ${esc(o.customer_name)}</div>${stageBadge(o)}</div>
                 <div class="muted small">${esc(o.customer_phone)} &middot; ${(o.order_items || []).length} item(s) &middot; ${esc(fmtDate(o.created_at))}</div>
                 <div><strong>${money(o.total)}</strong></div>
               </div>
