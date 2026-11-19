@@ -5,9 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Shop</title>
   <meta name="description" content="Browse our products and place your order online.">
-  <meta name="theme-color" content="#6C5CE7">
+  <meta name="theme-color" content="#FFC629">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Hanken+Grotesk:wght@400..800&display=swap">
   <script>try{var t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -16,28 +19,66 @@
 
   <section class="hero">
     <div class="container">
-      <h1>Find what you need</h1>
-      <p>Browse our catalogue, add items to your cart and send your order. We will confirm it with you directly.</p>
-      <form id="search-form" class="search-bar" role="search">
-        <input class="input" id="q" type="search" placeholder="Search products" aria-label="Search products" autocomplete="off" maxlength="80">
-      </form>
+      <div>
+        <h1>Pick it. Send it. We&rsquo;ll call.</h1>
+        <p class="lead">Browse the catalogue, add what you need and send your order in a minute. No payment online. Our team confirms every order by phone.</p>
+        <form id="search-form" class="search-bar" role="search">
+          <input class="input" id="q" type="search" placeholder="What are you looking for?" aria-label="Search products" autocomplete="off" maxlength="80">
+          <button class="btn btn-primary go" type="submit">Search</button>
+        </form>
+        <div class="hero-quick" id="hero-quick" aria-label="Quick categories"></div>
+      </div>
+      <div class="hero-art" id="hero-art" aria-hidden="true">
+        <div class="deal"><div class="thumb-empty"><i class="i i-camera"></i></div></div>
+        <div class="deal"><div class="thumb-empty"><i class="i i-camera"></i></div></div>
+        <div class="deal"><div class="thumb-empty"><i class="i i-camera"></i></div></div>
+        <div class="burst">No online payment</div>
+      </div>
     </div>
   </section>
 
+  <div class="trust">
+    <div class="container">
+      <span><i class="i i-shield"></i> Every order confirmed by our team</span>
+      <span><i class="i i-clock"></i> Track your order live</span>
+      <span><i class="i i-heart"></i> Save favourites for later</span>
+      <span><i class="i i-phone"></i> Order from your phone</span>
+    </div>
+  </div>
+
   <main class="container">
-    <section aria-labelledby="cat-title" class="mt">
-      <h2 id="cat-title">Categories</h2>
-      <div class="chips" id="categories" aria-live="polite"></div>
+    <section class="section" id="saved-sec" hidden aria-labelledby="saved-title">
+      <div class="section-head"><h2 id="saved-title">Saved by you</h2><a href="products.html?saved=1">See all</a></div>
+      <div class="h-scroll" id="saved"></div>
     </section>
 
-    <section aria-labelledby="latest-title" class="mt">
-      <div class="row between">
-        <h2 id="latest-title" style="margin:0">Latest products</h2>
-        <a href="products.html" class="small"><strong>View all</strong></a>
+    <section class="section" id="cat-sec" aria-labelledby="cat-title">
+      <div class="section-head"><h2 id="cat-title">Shop by category</h2></div>
+      <div class="cat-tiles" id="categories" aria-live="polite"></div>
+    </section>
+
+    <section class="section" aria-labelledby="latest-title">
+      <div class="section-head"><h2 id="latest-title">From the catalogue</h2><a href="products.html">View all</a></div>
+      <div class="grid" id="products" aria-live="polite">
+        <div class="skeleton" style="min-height:260px"></div><div class="skeleton" style="min-height:260px"></div><div class="skeleton" style="min-height:260px"></div><div class="skeleton" style="min-height:260px"></div>
       </div>
-      <div class="grid mt" id="products" aria-live="polite">
-        <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+    </section>
+
+    <section class="section" aria-labelledby="how-title">
+      <div class="section-head"><h2 id="how-title">How ordering works</h2></div>
+      <div class="how">
+        <div class="how-step"><b>1</b><h3>Add to cart</h3><p>Tap the + on any product. Change quantities in your cart.</p></div>
+        <div class="how-step"><b>2</b><h3>Send your order</h3><p>Enter your name and phone number. That is all we need.</p></div>
+        <div class="how-step"><b>3</b><h3>We confirm</h3><p>Our team calls you, then you can follow the progress here.</p></div>
       </div>
+    </section>
+
+    <section class="cta-band" id="cta" hidden>
+      <div>
+        <h2>Need help choosing?</h2>
+        <p>Message us and we will help you pick the right product.</p>
+      </div>
+      <div class="row" id="cta-btns"></div>
     </section>
   </main>
 
@@ -50,7 +91,6 @@
     renderSiteHeader('home');
 
     const grid = $('#products');
-    const chips = $('#categories');
 
     // Search goes to the catalogue page.
     $('#search-form').addEventListener('submit', e => {
@@ -68,8 +108,39 @@
       return false;
     }
 
+    // The hero collage uses real products from the catalogue.
+    function fillHero(products) {
+      const withImg = products.filter(p => p.images && p.images[0]).slice(0, 3);
+      const deals = $$('#hero-art .deal');
+      withImg.forEach((p, i) => {
+        deals[i].innerHTML = `<img src="${esc(p.images[0])}" alt=""><span class="tag">${esc(money(p.selling_price))}</span>`;
+      });
+      if (withImg.length < 3) deals.slice(withImg.length).forEach(d => d.remove());
+    }
+
+    async function loadSaved() {
+      const ids = Shop.favs.get();
+      if (!ids.length) return;
+      try {
+        const rows = await Shop.products({ ids: ids.slice(0, 12), limit: 12 });
+        if (!rows.length) return;
+        $('#saved').innerHTML = rows.map(productCardHtml).join('');
+        $('#saved-sec').hidden = false;
+      } catch (e) { console.error(e); }
+    }
+
+    window.addEventListener('settings-loaded', () => {
+      const s = window._shopSettings;
+      const digits = (s.contact_phone || '').replace(/\D/g, '');
+      if (!digits) return;
+      $('#cta-btns').innerHTML =
+        `<a class="btn btn-primary" target="_blank" rel="noopener" href="https://wa.me/${esc(digits)}"><i class="i i-chat"></i> WhatsApp us</a>` +
+        `<a class="btn" href="tel:${esc(s.contact_phone.replace(/[^+\d]/g, ''))}"><i class="i i-phone"></i> Call</a>`;
+      $('#cta').hidden = false;
+    });
+
     async function load() {
-      if (showSetupHint()) { chips.innerHTML = ''; return; }
+      if (showSetupHint()) { $('#cat-sec').hidden = true; return; }
       try {
         const settings = await applyBusinessSettings();
         if (settings) document.title = settings.business_name;
@@ -78,18 +149,22 @@
           Shop.categories(),
           Shop.products({ limit: 8 })
         ]);
+        fillHero(products);
 
-        chips.innerHTML = cats.length
-          ? cats.map(c => `<a class="chip" href="products.html?cat=${encodeURIComponent(c.id)}">${esc(c.name)}</a>`).join('')
-          : '<span class="muted small">No categories yet</span>';
+        $('#hero-quick').innerHTML = cats.slice(0, 4).map(c => `<a href="products.html?cat=${encodeURIComponent(c.id)}">${esc(c.name)}</a>`).join('');
+        if (cats.length) {
+          $('#categories').innerHTML = cats.map(c =>
+            `<a class="cat-tile" href="products.html?cat=${encodeURIComponent(c.id)}">${esc(c.name)}<i class="i i-arrow-right"></i></a>`).join('');
+        } else $('#cat-sec').hidden = true;
 
         grid.innerHTML = products.length
           ? products.map(productCardHtml).join('')
-          : '<div class="empty" style="grid-column:1/-1"><div class="big"><i class="i i-box"></i></div>No products available yet. Please check back soon.</div>';
+          : '<div class="empty" style="grid-column:1/-1"><div class="big"><i class="i i-box"></i></div>No products yet. Check back soon.</div>';
+        loadSaved();
       } catch (err) {
         console.error(err);
         grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="big"><i class="i i-alert"></i></div>' +
-          'Could not load products. Please refresh the page.</div>';
+          'Could not load products. Refresh the page to try again.</div>';
       }
     }
     load();

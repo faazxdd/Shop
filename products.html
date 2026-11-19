@@ -3,17 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Products</title>
-  <meta name="theme-color" content="#6C5CE7">
+  <title>Shop</title>
+  <meta name="theme-color" content="#FFC629">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Hanken+Grotesk:wght@400..800&display=swap">
   <script>try{var t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header id="site-header"></header>
 
-  <main class="container" id="main" style="padding-top:16px"></main>
+  <main class="container" id="main" style="padding-top:8px"></main>
 
   <footer id="site-footer"></footer>
 
@@ -27,18 +30,22 @@
     const main = $('#main');
     const PAGE = 24;
 
+    function errorBox(msg) {
+      return `<div class="empty"><div class="big"><i class="i i-alert"></i></div>${esc(msg)}</div>`;
+    }
+
     /* =====================================================
        DETAIL MODE:  products.html?id=<product id>
        ===================================================== */
     async function showDetail(id) {
-      main.innerHTML = '<div class="skeleton" style="min-height:320px"></div>';
+      main.innerHTML = '<a class="crumb" href="products.html"><i class="i i-arrow-left"></i> All products</a><div class="skeleton" style="min-height:380px"></div>';
       let p;
       try { p = await Shop.product(id); }
-      catch (err) { console.error(err); p = null; main.innerHTML = errorBox('Could not load this product.'); return; }
+      catch (err) { console.error(err); main.innerHTML = errorBox('Could not load this product. Refresh the page to try again.'); return; }
 
       if (!p) {
-        main.innerHTML = `<div class="empty"><div class="big"><i class="i i-search"></i></div>
-          This product is no longer available.<div class="mt"><a class="btn" href="products.html">Browse products</a></div></div>`;
+        main.innerHTML = `<div class="empty" style="margin-top:20px"><div class="big"><i class="i i-search"></i></div>
+          This product is no longer available.<div class="mt"><a class="btn btn-primary" href="products.html">Browse products</a></div></div>`;
         return;
       }
 
@@ -46,9 +53,10 @@
       const images = (p.images && p.images.length) ? p.images : [];
       const out = p.stock_status === 'out_of_stock';
       let qty = 1;
+      const saved = Shop.favs.has(p.id);
 
       main.innerHTML = `
-        <p class="small"><a href="products.html"><i class="i i-arrow-left"></i> All products</a></p>
+        <a class="crumb" href="products.html"><i class="i i-arrow-left"></i> All products</a>
         <div class="detail">
           <div>
             <div id="gallery-main">${images[0]
@@ -59,24 +67,43 @@
             }</div>` : ''}
           </div>
           <div class="stack">
-            ${p.category_name ? `<a class="badge badge-primary" href="products.html?cat=${encodeURIComponent(p.category_id)}">${esc(p.category_name)}</a>` : ''}
-            <h1 style="margin:0">${esc(p.name)}</h1>
-            <div class="price-lg">${money(p.selling_price)}</div>
-            <div>${stockBadge(p.stock_status)}</div>
-            ${p.description ? `<p style="white-space:pre-line">${esc(p.description)}</p>` : ''}
+            <div class="row wrap" style="gap:8px">
+              ${p.category_name ? `<a class="badge badge-primary" href="products.html?cat=${encodeURIComponent(p.category_id)}">${esc(p.category_name)}</a>` : ''}
+              ${stockBadge(p.stock_status)}
+            </div>
+            <h1 class="detail-title">${esc(p.name)}</h1>
+            <div class="price-lg">${priceHtml(p.selling_price)}</div>
+            ${p.description ? `<p style="white-space:pre-line;max-width:60ch">${esc(p.description)}</p>` : ''}
             <div class="row wrap">
               <div class="qty" aria-label="Quantity">
                 <button type="button" id="minus" aria-label="Decrease">&minus;</button>
                 <span id="qty-val" aria-live="polite">1</span>
                 <button type="button" id="plus" aria-label="Increase">+</button>
               </div>
-              <button class="btn btn-primary" id="add" style="flex:1" ${out ? 'disabled' : ''}>
-                ${out ? 'Out of stock' : 'Add to cart'}
+              <button class="btn btn-primary btn-lg" id="add" style="flex:1" ${out ? 'disabled' : ''}>
+                <i class="i i-bag"></i> ${out ? 'Sold out' : 'Add to cart'}
               </button>
             </div>
-            <a class="btn btn-block" href="cart.html">View cart</a>
+            <div class="row wrap">
+              <button class="btn btn-sm" type="button" id="save" aria-pressed="${saved}"><i class="i i-heart"></i> <span>${saved ? 'Saved' : 'Save'}</span></button>
+              <button class="btn btn-sm" type="button" id="share"><i class="i i-share"></i> Share</button>
+              <a class="btn btn-sm" id="ask" target="_blank" rel="noopener" hidden><i class="i i-chat"></i> Ask about this</a>
+            </div>
+            <div class="perks">
+              <div><i class="i i-shield"></i> Our team confirms your order by phone</div>
+              <div><i class="i i-tag"></i> Final price is confirmed when we receive your order</div>
+              <div><i class="i i-clock"></i> Track progress any time under My orders</div>
+            </div>
           </div>
-        </div>`;
+        </div>
+        <div class="buybar" id="buybar">
+          <span class="price">${priceHtml(p.selling_price)}</span>
+          <button class="btn btn-primary" id="add2" ${out ? 'disabled' : ''}>${out ? 'Sold out' : 'Add to cart'}</button>
+        </div>
+        <section class="related" id="related" hidden>
+          <div class="section-head"><h2>You may also like</h2></div>
+          <div class="h-scroll" id="related-list"></div>
+        </section>`;
 
       // Gallery: tap a thumbnail to change the main photo.
       const thumbs = $('#thumbs');
@@ -89,53 +116,105 @@
 
       $('#minus').onclick = () => { qty = Math.max(1, qty - 1); $('#qty-val').textContent = qty; };
       $('#plus').onclick = () => { qty = Math.min(99, qty + 1); $('#qty-val').textContent = qty; };
-      $('#add').onclick = () => {
+      const addToCart = () => {
         if (out) return;
         Shop.cart.add(p.id, qty);
         toast(`Added ${qty} to cart`, 'success');
       };
+      $('#add').onclick = addToCart;
+      $('#add2').onclick = addToCart;
+
+      $('#save').onclick = () => {
+        const on = Shop.favs.toggle(p.id);
+        $('#save span').textContent = on ? 'Saved' : 'Save';
+        toast(on ? 'Saved for later' : 'Removed from saved');
+      };
+      $('#share').onclick = async () => {
+        const data = { title: p.name, text: p.name, url: location.href };
+        try {
+          if (navigator.share) await navigator.share(data);
+          else { await navigator.clipboard.writeText(location.href); toast('Link copied', 'success'); }
+        } catch { /* cancelled */ }
+      };
+      const setAsk = () => {
+        const s = window._shopSettings, d = s && (s.contact_phone || '').replace(/\D/g, '');
+        if (!d) return;
+        const a = $('#ask');
+        a.href = `https://wa.me/${d}?text=${encodeURIComponent('Hi, I have a question about ' + p.name + ' ' + location.href)}`;
+        a.hidden = false;
+      };
+      setAsk(); window.addEventListener('settings-loaded', setAsk);
+
+      // Related products from the same category.
+      if (p.category_id) {
+        try {
+          const rows = (await Shop.products({ categoryId: p.category_id, limit: 9 })).filter(r => r.id !== p.id).slice(0, 8);
+          if (rows.length) {
+            $('#related-list').innerHTML = rows.map(productCardHtml).join('');
+            $('#related').hidden = false;
+          }
+        } catch (e) { console.error(e); }
+      }
     }
 
     /* =====================================================
-       CATALOGUE MODE:  products.html?q=...&cat=...
+       CATALOGUE MODE:  products.html?q=...&cat=...&saved=1
        ===================================================== */
     async function showCatalogue() {
       let search = param('q') || '';
       let cat = param('cat') || '';
+      let sort = param('sort') || 'name';
+      let savedOnly = param('saved') === '1';
       let offset = 0;
 
       main.innerHTML = `
-        <h1>Products</h1>
-        <form id="search-form" class="search-bar mb" role="search" onsubmit="return false">
-          <input class="input" id="q" type="search" placeholder="Search products" aria-label="Search products" autocomplete="off" maxlength="80">
-        </form>
-        <div class="chips" id="chips" aria-label="Categories"></div>
+        <div class="page-head"><h1 id="page-title">Shop</h1></div>
+        <div class="toolbar-shop">
+          <form id="search-form" class="search-bar" role="search" onsubmit="return false">
+            <input class="input" id="q" type="search" placeholder="Search products" aria-label="Search products" autocomplete="off" maxlength="80">
+          </form>
+          <div class="chips" id="chips" aria-label="Categories"></div>
+          <div class="sortbox">
+            <span class="result-note" id="note" aria-live="polite"></span>
+            <select class="input" id="sort" aria-label="Sort products">
+              <option value="name">Name A to Z</option>
+              <option value="price_asc">Price, low to high</option>
+              <option value="price_desc">Price, high to low</option>
+            </select>
+          </div>
+        </div>
         <div class="grid mt" id="grid" aria-live="polite"></div>
-        <div class="center mt"><button class="btn" id="more" hidden>Load more</button></div>`;
+        <div class="center mt"><button class="btn" id="more" hidden>Show more</button></div>`;
 
-      const grid = $('#grid'), chips = $('#chips'), more = $('#more'), qInput = $('#q');
-      qInput.value = search;
+      const grid = $('#grid'), chips = $('#chips'), more = $('#more'), qInput = $('#q'), sortSel = $('#sort');
+      qInput.value = search; sortSel.value = sort;
 
       let cats = [];
       try { cats = await Shop.categories(); } catch (e) { console.error(e); }
 
       function drawChips() {
+        $('#page-title').textContent = savedOnly ? 'Saved products' : 'Shop';
         chips.innerHTML =
-          `<button class="chip ${cat ? '' : 'active'}" data-cat="">All</button>` +
-          cats.map(c => `<button class="chip ${cat === c.id ? 'active' : ''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`).join('');
+          `<button class="chip ${!cat && !savedOnly ? 'active' : ''}" data-cat="">All</button>` +
+          `<button class="chip ${savedOnly ? 'active' : ''}" data-saved="1"><i class="i i-heart" style="margin-right:6px"></i>Saved</button>` +
+          cats.map(c => `<button class="chip ${cat === c.id && !savedOnly ? 'active' : ''}" data-cat="${esc(c.id)}">${esc(c.name)}</button>`).join('');
       }
       chips.addEventListener('click', e => {
-        const b = e.target.closest('[data-cat]');
+        const b = e.target.closest('.chip');
         if (!b) return;
-        cat = b.dataset.cat;
+        savedOnly = !!b.dataset.saved;
+        cat = savedOnly ? '' : (b.dataset.cat || '');
         drawChips();
         reload();
       });
+      sortSel.onchange = () => { sort = sortSel.value; reload(); };
 
       function syncUrl() {
         const u = new URLSearchParams();
         if (search) u.set('q', search);
         if (cat) u.set('cat', cat);
+        if (sort !== 'name') u.set('sort', sort);
+        if (savedOnly) u.set('saved', '1');
         history.replaceState(null, '', 'products.html' + (u.toString() ? '?' + u : ''));
       }
 
@@ -143,20 +222,25 @@
       async function load(append) {
         const mine = ++requestId;
         if (!append) {
-          grid.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
+          grid.innerHTML = skeletons(8);
           more.hidden = true;
         }
         try {
-          const rows = await Shop.products({ search, categoryId: cat, limit: PAGE, offset });
+          const rows = await Shop.products({ search, categoryId: cat, limit: PAGE, offset, sort, ids: savedOnly ? Shop.favs.get() : null });
           if (mine !== requestId) return;
           const html = rows.map(productCardHtml).join('');
           if (append) grid.insertAdjacentHTML('beforeend', html);
-          else grid.innerHTML = html || `<div class="empty" style="grid-column:1/-1"><div class="big"><i class="i i-search"></i></div>No products found.</div>`;
+          else {
+            grid.innerHTML = html || `<div class="empty" style="grid-column:1/-1"><div class="big"><i class="i i-${savedOnly ? 'heart' : 'search'}"></i></div>${
+              savedOnly ? 'Nothing saved yet. Tap the heart on a product to keep it here.' : 'No products match. Try another word or category.'}</div>`;
+          }
           more.hidden = rows.length < PAGE;
+          const shown = grid.querySelectorAll('.product-card').length;
+          $('#note').textContent = shown ? shown + (more.hidden ? '' : '+') + ' product' + (shown === 1 ? '' : 's') : '';
         } catch (err) {
           if (mine !== requestId) return;
           console.error(err);
-          grid.innerHTML = `<div style="grid-column:1/-1">${errorBox('Could not load products. Please refresh the page.')}</div>`;
+          grid.innerHTML = `<div style="grid-column:1/-1">${errorBox('Could not load products. Refresh the page to try again.')}</div>`;
         }
       }
       function reload() { offset = 0; syncUrl(); load(false); }
@@ -166,10 +250,6 @@
 
       drawChips();
       load(false);
-    }
-
-    function errorBox(msg) {
-      return `<div class="empty"><div class="big"><i class="i i-alert"></i></div>${esc(msg)}</div>`;
     }
 
     /* ---------- Router ---------- */

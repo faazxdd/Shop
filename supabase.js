@@ -92,11 +92,16 @@ const Shop = {
     return throwIfError(await sb.from('categories').select('id,name').order('sort_order').order('name'));
   },
 
-  async products({ search = '', categoryId = '', limit = 60, offset = 0 } = {}) {
+  // sort: 'name' (default) | 'price_asc' | 'price_desc'.  ids: only these products (used by "Saved").
+  async products({ search = '', categoryId = '', limit = 60, offset = 0, sort = 'name', ids = null } = {}) {
+    if (ids && !ids.length) return [];
     let q = sb.from('public_products')
-      .select('id,name,description,images,selling_price,category_id,category_name,stock_status')
-      .order('name')
-      .range(offset, offset + limit - 1);
+      .select('id,name,description,images,selling_price,category_id,category_name,stock_status');
+    if (sort === 'price_asc') q = q.order('selling_price', { ascending: true }).order('name');
+    else if (sort === 'price_desc') q = q.order('selling_price', { ascending: false }).order('name');
+    else q = q.order('name');
+    q = q.range(offset, offset + limit - 1);
+    if (ids) q = q.in('id', ids);
     const term = search.trim().replace(/[%,()]/g, ' ');
     if (term) q = q.or(`name.ilike.%${term}%,description.ilike.%${term}%`);
     if (categoryId) q = q.eq('category_id', categoryId);
@@ -138,6 +143,20 @@ const Shop = {
     remove(productId) { this.setQty(productId, 0); },
     clear() { this.save([]); },
     count() { return this.get().reduce((n, i) => n + i.quantity, 0); }
+  },
+
+  /* Saved (favourite) products live in the browser only. */
+  favs: {
+    KEY: 'favs_v1',
+    get() { try { return JSON.parse(localStorage.getItem(this.KEY)) || []; } catch { return []; } },
+    has(id) { return this.get().includes(id); },
+    toggle(id) {
+      const list = this.get();
+      const next = list.includes(id) ? list.filter(x => x !== id) : [id, ...list].slice(0, 100);
+      try { localStorage.setItem(this.KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
+      window.dispatchEvent(new Event('favs-changed'));
+      return next.includes(id);
+    }
   },
 
   // Fetch current product details for the cart lines (names/prices shown are display only;

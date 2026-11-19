@@ -5,9 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Admin</title>
   <meta name="robots" content="noindex,nofollow">
-  <meta name="theme-color" content="#6C5CE7">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#FFC629">
   <link rel="manifest" href="admin-manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Hanken+Grotesk:wght@400..800&display=swap">
   <script>try{var t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -16,7 +20,9 @@
   <!-- Login -->
   <div class="login-wrap" id="login-view" hidden>
     <form class="card login-card" id="login-form">
-      <h1 style="text-align:center">Admin sign in</h1>
+      <div class="brand-mark"><i class="i i-bag"></i></div>
+      <h1 style="text-align:center;margin-bottom:4px">Admin sign in</h1>
+      <p class="muted center small" style="margin-bottom:18px">Staff only. Use the email and password for your shop account.</p>
       <label class="field"><span>Email</span><input class="input" name="email" type="email" autocomplete="username" required></label>
       <label class="field"><span>Password</span><input class="input" name="password" type="password" autocomplete="current-password" required></label>
       <button class="btn btn-primary btn-block" type="submit">Sign in</button>
@@ -26,7 +32,7 @@
   <!-- App shell -->
   <div id="app-view" hidden>
     <header class="admin-top">
-      <strong id="top-title">Admin</strong>
+      <span class="brand-mini"><i class="i i-bag"></i></span><strong id="top-title">Admin</strong>
       <span class="spacer"></span>
       <button class="icon-btn theme-toggle" type="button" aria-label="Switch light or dark theme"><i class="i i-moon"></i><i class="i i-sun"></i></button>
       <button class="btn btn-sm" id="signout">Sign out</button>
@@ -67,20 +73,49 @@
         el.innerHTML = '<div class="stats"><div class="skeleton" style="min-height:80px"></div><div class="skeleton" style="min-height:80px"></div></div>';
         const s = await Admin.summary();
         const stat = (label, value, cls = '') => `<div class="card stat ${cls}"><div class="label">${esc(label)}</div><div class="value">${value}</div></div>`;
+        const hr = new Date().getHours();
+        const hello = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
+        const pending = Number(s.orders_pending) || 0;
+        const parts = [
+          ['pending', 'Pending', s.orders_pending, 'var(--saffron)'],
+          ['confirmed', 'Confirmed or processing', s.orders_confirmed, 'var(--emerald)'],
+          ['completed', 'Completed', s.orders_completed, 'var(--ink)'],
+          ['cancelled', 'Cancelled or rejected', s.orders_cancelled, 'var(--coral)']
+        ].map(([k, l, n, c]) => [k, l, Number(n) || 0, c]);
+        const sum = parts.reduce((t, p) => t + p[2], 0);
         el.innerHTML = `
+          <section class="dash-hello">
+            <div>
+              <h2>${hello}</h2>
+              <p>${pending ? `${pending} order${pending === 1 ? '' : 's'} waiting for you to accept.` : 'No orders waiting. You are all caught up.'}</p>
+            </div>
+            <div class="row wrap">
+              <button class="btn" data-go="orders">${pending ? 'Review orders' : 'View orders'}</button>
+              <button class="btn" data-go="products">Manage products</button>
+            </div>
+          </section>
+
+          <h3 class="dash-group">Orders</h3>
+          <div class="card flat">
+            ${sum ? `<div class="pipeline" role="img" aria-label="Orders by status">${parts.map(p => p[2] ? `<i class="p-${p[0]}" style="flex:${p[2]}" title="${esc(p[1])}: ${p[2]}"></i>` : '').join('')}</div>` : '<p class="muted" style="margin:0">No orders yet.</p>'}
+            <div class="legend">${parts.map(p => `<span style="--c:${p[3]}">${esc(p[1])} <strong>${p[2]}</strong></span>`).join('')}</div>
+          </div>
+
+          <h3 class="dash-group">Stock value</h3>
+          <div class="stats two">
+            ${stat('Potential gross profit', money(s.potential_profit), 'big')}
+            ${stat('Selling value', money(s.selling_value))}
+            ${stat('Purchase value', money(s.purchase_value))}
+          </div>
+
+          <h3 class="dash-group">Inventory</h3>
           <div class="stats">
-            ${stat('Total products', s.total_products)}
-            ${stat('Available stock', s.total_stock)}
-            ${stat('Purchase stock value', money(s.purchase_value))}
-            ${stat('Selling stock value', money(s.selling_value))}
-            ${stat('Potential gross profit', money(s.potential_profit))}
+            ${stat('Products', s.total_products)}
+            ${stat('Units in stock', s.total_stock)}
             ${stat('Low stock', s.low_stock, s.low_stock ? 'warn' : '')}
             ${stat('Out of stock', s.out_of_stock, s.out_of_stock ? 'bad' : '')}
-            ${stat('Pending orders', s.orders_pending, s.orders_pending ? 'warn' : '')}
-            ${stat('Confirmed / processing', s.orders_confirmed)}
-            ${stat('Completed orders', s.orders_completed)}
-            ${stat('Cancelled / rejected', s.orders_cancelled)}
           </div>`;
+        el.onclick = ev => { const b = ev.target.closest('[data-go]'); if (b) showTab(b.dataset.go); };
       }
     });
 
@@ -93,7 +128,7 @@
             <input class="input" id="p-search" type="search" placeholder="Search name, SKU, brand">
             <select class="input" id="p-status"><option value="">All status</option><option>published</option><option>draft</option><option>archived</option></select>
             <select class="input" id="p-stock"><option value="">All stock</option><option value="low">Low stock</option><option value="out">Out of stock</option></select>
-            <button class="btn btn-primary" id="p-add">+ Add product</button>
+            <button class="btn btn-primary" id="p-add"><i class="i i-plus"></i> Add product</button>
           </div>
           <div id="p-list"></div>`;
         const list = $('#p-list');
@@ -165,7 +200,7 @@
           <div class="field"><span>Photos</span>
             <div class="image-grid" id="imgs"></div>
             <input type="file" id="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
-            <button type="button" class="btn btn-sm" id="addimg">+ Add photos</button>
+            <button type="button" class="btn btn-sm" id="addimg"><i class="i i-plus"></i> Add photos</button>
           </div>
           <div class="row" style="justify-content:space-between;margin-top:8px">
             ${isNew ? '<span></span>' : '<button type="button" class="btn btn-danger" id="del">Delete</button>'}

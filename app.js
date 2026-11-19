@@ -128,7 +128,7 @@ function productStatusBadge(status) {
 
 /* ---------- Images ---------- */
 function productImage(url, alt = '', cls = 'thumb') {
-  if (!url) return `<div class="thumb-empty ${cls === 'thumb' ? '' : ''}" aria-hidden="true"><i class="i i-camera"></i></div>`;
+  if (!url) return `<div class="thumb-empty" aria-hidden="true"><i class="i i-camera"></i></div>`;
   return `<img class="${esc(cls)}" src="${esc(url)}" alt="${esc(alt)}" loading="lazy" decoding="async">`;
 }
 
@@ -152,42 +152,62 @@ function stepsHtml(step) {
   }).join('') + '</div>';
 }
 
+function priceHtml(n) {
+  return `<small>${esc(_currency)}</small>${Number(n || 0).toFixed(2)}`;
+}
+
 function renderSiteHeader(active = '', step = 0) {
   const host = $('#site-header');
   if (!host) return;
-  const link = (href, label, key) =>
-    `<a href="${href}" ${active === key ? 'style="color:var(--primary)"' : ''}>${label}</a>`;
+  const link = (href, label, key) => `<a href="${href}" class="${active === key ? 'on' : ''}">${label}</a>`;
+  const tab = (href, icon, label, key, extra = '') =>
+    `<a href="${href}" class="${active === key ? 'on' : ''}" ${active === key ? 'aria-current="page"' : ''}><i class="i ${icon}"></i>${label}${extra}</a>`;
   host.className = 'site-header';
   host.innerHTML = `
     <div class="container">
-      <a class="brand" href="index.html"><span class="logo"><i class="i i-bag"></i></span><span id="brand-name">Shop</span></a>
+      <a class="brand" href="index.html" aria-label="Home"><span class="logo" id="brand-mark">S</span><span id="brand-name">Shop</span></a>
       <nav class="nav-links" aria-label="Main">
         ${link('index.html', 'Home', 'home')}
-        ${link('products.html', 'Products', 'products')}
+        ${link('products.html', 'Shop', 'products')}
         ${link('orders.html', 'My orders', 'orders')}
       </nav>
       <span class="spacer"></span>
-      ${step ? stepsHtml(step) + '<span class="spacer"></span>' : ''}
-      <a class="icon-btn" href="products.html" aria-label="Search products"><i class="i i-search"></i></a>
-      <a class="icon-btn" href="orders.html" aria-label="My orders"><i class="i i-orders"></i></a>
+      <a class="icon-btn" href="products.html?saved=1" aria-label="Saved products"><i class="i i-heart"></i></a>
       <button class="icon-btn theme-toggle" type="button" aria-label="Switch light or dark theme"><i class="i i-moon"></i><i class="i i-sun"></i></button>
       <a class="icon-btn cart-link" href="cart.html" aria-label="Cart">
         <i class="i i-bag"></i><span class="cart-count" id="cart-count" data-n="0"></span>
       </a>
     </div>`;
+  // Checkout progress sits under the header, outside the sticky bar.
+  if (step) host.insertAdjacentHTML('afterend', `<div class="steps-bar"><div class="container">${stepsHtml(step)}</div></div>`);
+
+  if (!$('.tabbar')) {
+    const bar = document.createElement('nav');
+    bar.className = 'tabbar';
+    bar.setAttribute('aria-label', 'Main');
+    bar.innerHTML =
+      tab('index.html', 'i-home', 'Home', 'home') +
+      tab('products.html', 'i-grid', 'Shop', 'products') +
+      tab('cart.html', 'i-bag', 'Cart', 'cart', '<span class="tab-count" id="tab-count"></span>') +
+      tab('orders.html', 'i-orders', 'Orders', 'orders');
+    document.body.appendChild(bar);
+  }
   updateCartBadge(true);
 }
 
 let _lastCartCount = null;
 function updateCartBadge(initial) {
-  const el = $('#cart-count');
-  if (!el) return;
   const n = Shop.cart.count();
-  el.textContent = n > 0 ? (n > 99 ? '99+' : n) : '';
-  el.dataset.n = String(n);
-  if (initial !== true && _lastCartCount !== null && n !== _lastCartCount && n > 0) {
-    el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+  const label = n > 0 ? (n > 99 ? '99+' : n) : '';
+  const el = $('#cart-count');
+  if (el) {
+    el.textContent = label;
+    el.dataset.n = String(n);
+    if (initial !== true && _lastCartCount !== null && n !== _lastCartCount && n > 0) {
+      el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
+    }
   }
+  const t = $('#tab-count'); if (t) t.textContent = label;
   _lastCartCount = n;
 }
 window.addEventListener('cart-changed', () => updateCartBadge());
@@ -200,16 +220,29 @@ async function applyBusinessSettings() {
     if (!s) return null;
     const brand = $('#brand-name');
     if (brand) brand.textContent = s.business_name;
+    const mark = $('#brand-mark');
+    if (mark && s.business_name) mark.textContent = s.business_name.trim().charAt(0).toUpperCase();
     const foot = $('#site-footer');
     if (foot) {
+      const digits = (s.contact_phone || '').replace(/\D/g, '');
       foot.className = 'site-footer';
       foot.innerHTML = `
         <div class="container">
-          <strong>${esc(s.business_name)}</strong>
-          ${s.contact_phone ? `<div>Call us: <a href="tel:${esc(s.contact_phone.replace(/[^+\d]/g, ''))}">${esc(s.contact_phone)}</a></div>` : ''}
-          <div class="small" style="margin-top:8px">Orders are confirmed by our team. No online payment needed.</div>
+          <div>
+            <strong>${esc(s.business_name)}</strong>
+            <p class="fine" style="margin-top:6px">Orders are confirmed by our team. No online payment needed.</p>
+          </div>
+          <div>
+            ${digits ? `<div class="foot-btns">
+              <a class="btn btn-primary" href="tel:${esc(s.contact_phone.replace(/[^+\d]/g, ''))}"><i class="i i-phone"></i> ${esc(s.contact_phone)}</a>
+              <a class="btn" target="_blank" rel="noopener" href="https://wa.me/${esc(digits)}"><i class="i i-chat"></i> WhatsApp</a>
+            </div>` : ''}
+            <p class="fine" style="margin:14px 0 0"><a href="orders.html">Track an order</a> &nbsp; <a href="products.html?saved=1">Saved products</a></p>
+          </div>
         </div>`;
     }
+    window._shopSettings = s;
+    window.dispatchEvent(new Event('settings-loaded'));
     return s;
   } catch {
     return null;
@@ -219,16 +252,49 @@ async function applyBusinessSettings() {
 /* ---------- Product card (customer) ---------- */
 function productCardHtml(p) {
   const out = p.stock_status === 'out_of_stock';
+  const saved = Shop.favs.has(p.id);
+  const flag = out ? '<span class="badge badge-danger pc-flag">Sold out</span>'
+    : p.stock_status === 'low_stock' ? '<span class="badge badge-warning pc-flag">Few left</span>' : '';
   return `
-    <a class="product-card" href="products.html?id=${encodeURIComponent(p.id)}">
-      ${productImage(p.images?.[0], p.name)}
-      <div class="body">
-        <div class="name">${esc(p.name)}</div>
-        <div class="price">${money(p.selling_price)}</div>
-        <div>${stockBadge(p.stock_status)}</div>
+    <article class="product-card ${out ? 'sold-out' : ''}">
+      <div class="pc-media">
+        ${productImage(p.images?.[0], p.name)}
+        ${flag}
+        <button class="fav" type="button" data-fav="${esc(p.id)}" aria-pressed="${saved}" aria-label="${saved ? 'Remove from saved' : 'Save'} ${esc(p.name)}"><i class="i i-heart"></i></button>
       </div>
-    </a>`;
+      <div class="pc-body">
+        ${p.category_name ? `<div class="pc-cat">${esc(p.category_name)}</div>` : ''}
+        <a class="pc-name" href="products.html?id=${encodeURIComponent(p.id)}">${esc(p.name)}</a>
+        <div class="pc-foot">
+          <span class="price">${priceHtml(p.selling_price)}</span>
+          <button class="pc-add" type="button" data-add="${esc(p.id)}" ${out ? 'disabled' : ''} aria-label="Add ${esc(p.name)} to cart"><i class="i i-plus"></i></button>
+        </div>
+      </div>
+    </article>`;
 }
+
+// Save / quick-add buttons on any product card (event delegation).
+document.addEventListener('click', e => {
+  const fav = e.target.closest('[data-fav]');
+  if (fav) {
+    e.preventDefault();
+    const on = Shop.favs.toggle(fav.dataset.fav);
+    $$(`[data-fav="${CSS.escape(fav.dataset.fav)}"]`).forEach(b => b.setAttribute('aria-pressed', String(on)));
+    toast(on ? 'Saved for later' : 'Removed from saved');
+    return;
+  }
+  const add = e.target.closest('[data-add]');
+  if (add) {
+    e.preventDefault();
+    Shop.cart.add(add.dataset.add, 1);
+    add.classList.add('done');
+    add.innerHTML = '<i class="i i-check"></i>';
+    setTimeout(() => { add.classList.remove('done'); add.innerHTML = '<i class="i i-plus"></i>'; }, 1100);
+    toast('Added to cart', 'success');
+  }
+});
+
+function skeletons(n = 4) { return '<div class="skeleton" style="min-height:260px"></div>'.repeat(n); }
 
 /* ---------- Service worker ---------- */
 function registerServiceWorker() {

@@ -4,22 +4,25 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>My orders</title>
-  <meta name="theme-color" content="#6C5CE7">
   <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#FFC629">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Hanken+Grotesk:wght@400..800&display=swap">
   <script>try{var t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header id="site-header"></header>
 
-  <main class="container" style="padding-top:16px; max-width:680px">
-    <h1>My orders</h1>
+  <main class="container" style="max-width:720px">
+    <div class="page-head"><h1>My orders</h1></div>
     <div id="placed"></div>
     <div id="list"><div class="skeleton" style="min-height:180px"></div></div>
 
-    <form class="card mt" id="lookup" novalidate>
+    <form class="card" id="lookup" novalidate>
       <h3>Track an order from another device</h3>
       <p class="help" style="margin-top:0">Enter the order number and the phone number you used when ordering.</p>
       <label class="field"><span>Order number</span>
@@ -67,6 +70,20 @@
       return 0;
     }
 
+    // WhatsApp link about this order, when the shop has a phone number.
+    function waLink(o) {
+      const d = (window._shopSettings?.contact_phone || '').replace(/\D/g, '');
+      if (!d) return '<span></span>';
+      const t = encodeURIComponent('Hi, about my order #' + o.order_number);
+      return `<a class="btn btn-sm" target="_blank" rel="noopener" href="https://wa.me/${d}?text=${t}"><i class="i i-chat"></i> Message the shop</a>`;
+    }
+
+    document.addEventListener('click', async e => {
+      const b = e.target.closest('[data-copy]');
+      if (!b) return;
+      try { await navigator.clipboard.writeText(b.dataset.copy); toast('Order number copied', 'success'); } catch { /* ignore */ }
+    });
+
     function orderCard(o) {
       const closed = o.status === 'rejected' || o.status === 'cancelled';
       const idx = stage(o);
@@ -89,7 +106,7 @@
           </div>
           ${items ? `<div class="order-items muted">${items}</div>` : ''}
           ${msg}${timeline}
-          <div class="right mt"><button class="link-danger" data-hide style="color:var(--text-soft)">Remove from list</button></div>
+          <div class="row between mt">${waLink(o)}<button class="link-danger" data-hide style="color:var(--text-soft)">Remove from list</button></div>
         </div>`;
     }
 
@@ -97,7 +114,7 @@
       const lookups = Shop.myOrders.get();
       if (!lookups.length) {
         listEl.innerHTML = `<div class="empty"><div class="big"><i class="i i-orders"></i></div>
-          <p>No orders on this device yet.</p><a class="btn btn-primary" href="products.html">Browse products</a></div>`;
+          <h2 style="margin-bottom:4px;color:var(--ink)">No orders yet</h2><p>Orders you place on this device show up here.</p><a class="btn btn-primary" href="products.html">Browse products</a></div>`;
         return;
       }
       try {
@@ -109,7 +126,7 @@
         console.error(err);
         if (firstLoad) {
           // Live tracking unreachable: still show the orders saved on this device.
-          listEl.innerHTML = `<div class="order-status-msg bad">Live status is unavailable right now. Pull to refresh in a moment.<br><small>${esc(errMsg(err))}</small></div>` +
+          listEl.innerHTML = `<div class="order-status-msg bad">Live status is unavailable. Showing the orders saved on this device; it will update when the connection is back.<br><small>${esc(errMsg(err))}</small></div>` +
             lookups.map(l => orderCard({ order_number: l.n, created_at: l.d || '', total: l.t || 0, status: 'pending', items: [] })).join('');
         }
       }
@@ -149,10 +166,10 @@
       $('#placed').innerHTML = `
         <div class="card confirm-box mb">
           <div class="confirm-icon" aria-hidden="true"><i class="i i-check"></i></div>
-          <h2 style="margin-bottom:4px">Order received</h2>
+          <h2 style="margin-bottom:4px">Order sent</h2>
           <p class="muted">Thank you! Our team will contact you shortly to confirm your order.</p>
-          <div class="order-number">#${esc(order.order_number)}</div>
-          <p class="help">Keep this number. Your order progress shows below and updates automatically.</p>
+          <div class="order-number">#${esc(order.order_number)}<button type="button" data-copy="${esc(order.order_number)}" aria-label="Copy order number"><i class="i i-copy"></i></button></div>
+          <p class="help">Keep this number. Progress shows below and updates by itself.</p>
         </div>`;
     }
 
