@@ -1,187 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>My orders</title>
-  <meta name="robots" content="noindex">
-  <meta name="theme-color" content="#FFC629">
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Hanken+Grotesk:wght@400..800&display=swap">
-  <script>try{var t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
-  <link rel="stylesheet" href="style.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>My orders</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="shop.css">
 </head>
 <body>
-  <header id="site-header"></header>
-
-  <main class="container" style="max-width:720px">
-    <div class="page-head"><h1>My orders</h1></div>
-    <div id="placed"></div>
-    <div id="list"><div class="skeleton" style="min-height:180px"></div></div>
-
-    <form class="card" id="lookup" novalidate>
-      <h3>Track an order from another device</h3>
-      <p class="help" style="margin-top:0">Enter the order number and the phone number you used when ordering.</p>
-      <label class="field"><span>Order number</span>
-        <input class="input" name="n" inputmode="numeric" maxlength="20" placeholder="e.g. 1042" autocomplete="off"></label>
-      <label class="field"><span>Phone number</span>
-        <input class="input" name="p" type="tel" inputmode="tel" maxlength="20" placeholder="+971 50 123 4567" autocomplete="tel"></label>
-      <div class="error-text" id="lookup-err" hidden></div>
-      <button class="btn btn-primary" type="submit" id="lookup-btn">Track order</button>
-    </form>
-  </main>
-
-  <footer id="site-footer"></footer>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
-  <script src="supabase.js"></script>
-  <script src="app.js"></script>
-  <script>
-    const justPlaced = location.hash === '#placed';
-    renderSiteHeader('orders', justPlaced ? 4 : 0);
-
-    const STEPS = ['Order placed', 'Accepted', 'Packed', 'Out for delivery', 'Delivered'];
-    const HINTS = [
-      'Waiting for the shop to confirm',
-      'The shop accepted your order',
-      'Your order is packed and ready',
-      'Your order is on its way',
-      'Your order was delivered'
-    ];
-    const MESSAGES = [
-      'We received your order. The shop will confirm it shortly.',
-      'Good news! Your order is accepted and is being prepared.',
-      'Your order is packed. Delivery is next.',
-      'Your order is out for delivery.',
-      'Delivered. Thank you for shopping with us!'
-    ];
-
-    const listEl = $('#list');
-    let phone = '';
-    let firstLoad = true;
-
-    // 0..4 = position on the timeline
-    function stage(o) {
-      if (o.status === 'completed') return 4;
-      if (o.status === 'confirmed' || o.status === 'processing') return o.step === 'out_for_delivery' ? 3 : o.step === 'packed' ? 2 : 1;
-      return 0;
-    }
-
-    // WhatsApp link about this order, when the shop has a phone number.
-    function waLink(o) {
-      const d = (window._shopSettings?.contact_phone || '').replace(/\D/g, '');
-      if (!d) return '<span></span>';
-      const t = encodeURIComponent('Hi, about my order #' + o.order_number);
-      return `<a class="btn btn-sm" target="_blank" rel="noopener" href="https://wa.me/${d}?text=${t}"><i class="i i-chat"></i> Message the shop</a>`;
-    }
-
-    document.addEventListener('click', async e => {
-      const b = e.target.closest('[data-copy]');
-      if (!b) return;
-      try { await navigator.clipboard.writeText(b.dataset.copy); toast('Order number copied', 'success'); } catch { /* ignore */ }
-    });
-
-    function orderCard(o) {
-      const closed = o.status === 'rejected' || o.status === 'cancelled';
-      const idx = stage(o);
-      const items = (o.items || []).map(i => `${esc(i.name)} &times; ${esc(i.qty)}`).join(', ');
-      const timeline = closed ? '' : `
-        <ul class="timeline" aria-label="Order progress">
-          ${STEPS.map((label, i) => {
-            const cls = i < idx || idx === 4 ? 'done' : i === idx ? 'current' : '';
-            return `<li class="${cls}"><span class="tl-dot">${cls === 'done' ? '<i class="i i-check"></i>' : ''}</span>${esc(label)}${i === idx && idx !== 4 ? `<small>${esc(HINTS[i])}</small>` : ''}</li>`;
-          }).join('')}
-        </ul>`;
-      const msg = closed
-        ? `<div class="order-status-msg bad">${o.status === 'rejected' ? 'Sorry, the shop could not accept this order.' : 'This order was cancelled.'}${phone ? ' Please call us for details.' : ''}</div>`
-        : `<div class="order-status-msg ${idx === 4 ? 'good' : ''}">${esc(MESSAGES[idx])}</div>`;
-      return `
-        <div class="card order-card" data-n="${esc(o.order_number)}">
-          <div class="order-top">
-            <div><div class="num">Order #${esc(o.order_number)}</div><div class="muted small">${esc(fmtDate(o.created_at))}</div></div>
-            <strong>${money(o.total)}</strong>
-          </div>
-          ${items ? `<div class="order-items muted">${items}</div>` : ''}
-          ${msg}${timeline}
-          <div class="row between mt">${waLink(o)}<button class="link-danger" data-hide style="color:var(--text-soft)">Remove from list</button></div>
-        </div>`;
-    }
-
-    async function load() {
-      const lookups = Shop.myOrders.get();
-      if (!lookups.length) {
-        listEl.innerHTML = `<div class="empty"><div class="big"><i class="i i-orders"></i></div>
-          <h2 style="margin-bottom:4px;color:var(--ink)">No orders yet</h2><p>Orders you place on this device show up here.</p><a class="btn btn-primary" href="products.html">Browse products</a></div>`;
-        return;
-      }
-      try {
-        const rows = await Shop.trackOrders(lookups);
-        listEl.innerHTML = rows.length
-          ? rows.map(orderCard).join('')
-          : '<div class="empty">We could not find your saved orders.</div>';
-      } catch (err) {
-        console.error(err);
-        if (firstLoad) {
-          // Live tracking unreachable: still show the orders saved on this device.
-          listEl.innerHTML = `<div class="order-status-msg bad">Live status is unavailable. Showing the orders saved on this device; it will update when the connection is back.<br><small>${esc(errMsg(err))}</small></div>` +
-            lookups.map(l => orderCard({ order_number: l.n, created_at: l.d || '', total: l.t || 0, status: 'pending', items: [] })).join('');
-        }
-      }
-      firstLoad = false;
-    }
-
-    listEl.addEventListener('click', async e => {
-      if (!e.target.closest('[data-hide]')) return;
-      const n = e.target.closest('.order-card').dataset.n;
-      if (!(await confirmDialog('Remove this order from this device? You can track it again with the order number and phone.', 'Remove'))) return;
-      Shop.myOrders.remove(n);
-      load();
-    });
-
-    $('#lookup').addEventListener('submit', async e => {
-      e.preventDefault();
-      const f = e.target.elements, err = $('#lookup-err');
-      const n = f.n.value.trim().replace(/^#/, ''), p = f.p.value.trim();
-      err.hidden = true;
-      if (!n || p.replace(/\D/g, '').length < 6) { err.textContent = 'Enter the order number and your phone number.'; err.hidden = false; return; }
-      await withBusy($('#lookup-btn'), async () => {
-        try {
-          const rows = await Shop.trackOrders([{ n, p }]);
-          if (!rows.length) { err.textContent = 'No order found. Check the number and phone.'; err.hidden = false; return; }
-          Shop.myOrders.add(n, p);
-          f.n.value = ''; f.p.value = '';
-          toast('Order added to your list', 'success');
-          await load();
-        } catch (ex) { err.textContent = errMsg(ex); err.hidden = false; }
-      });
-    });
-
-    function showPlaced() {
-      let order = null;
-      try { order = JSON.parse(sessionStorage.getItem('last_order') || 'null'); } catch { order = null; }
-      if (!justPlaced || !order || !order.order_number) return;
-      $('#placed').innerHTML = `
-        <div class="card confirm-box mb">
-          <div class="confirm-icon" aria-hidden="true"><i class="i i-check"></i></div>
-          <h2 style="margin-bottom:4px">Order sent</h2>
-          <p class="muted">Thank you! Our team will contact you shortly to confirm your order.</p>
-          <div class="order-number">#${esc(order.order_number)}<button type="button" data-copy="${esc(order.order_number)}" aria-label="Copy order number"><i class="i i-copy"></i></button></div>
-          <p class="help">Keep this number. Progress shows below and updates by itself.</p>
-        </div>`;
-    }
-
-    (async () => {
-      showPlaced();
-      const settings = await applyBusinessSettings();
-      if (settings && settings.contact_phone) phone = settings.contact_phone;
-      await load();
-      // Refresh progress while the page is open.
-      setInterval(() => { if (!document.hidden) load(); }, 20000);
-      document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
-    })();
-  </script>
+<div class="shell">
+<div id="util"></div>
+<header id="site-header"></header>
+<main class="main" style="max-width:760px;width:100%;margin:0 auto;gap:18px">
+<div class="page-h"><div class="sub">Tracking</div><h1>My orders</h1></div>
+<div id="placed"></div>
+<div id="list"><div class="skel" style="min-height:180px"></div></div>
+<form class="card" id="lookup" novalidate>
+  <h3 style="margin-bottom:6px">Track an order from another device</h3>
+  <p class="help" style="margin-top:0">Enter the order number and the phone number you used when ordering.</p>
+  <label class="field"><span>Order number</span><input class="in" name="n" inputmode="numeric" maxlength="20" placeholder="e.g. 1042" autocomplete="off"></label>
+  <label class="field"><span>Phone number</span><input class="in" name="p" type="tel" inputmode="tel" maxlength="20" placeholder="+971 50 123 4567" autocomplete="tel"></label>
+  <div class="err" id="lookup-err" hidden></div>
+  <button class="btn dark" type="submit" id="lookup-btn">Track order</button>
+</form>
+</main>
+<footer id="site-footer"></footer>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
+<script src="supabase.js"></script>
+<script src="shop.js"></script>
+<script>
+const justPlaced=location.hash==='#placed';
+renderSiteHeader('orders');
+const STEPS=['Order placed','Accepted','Packed','Out for delivery','Delivered'];
+const HINTS=['Waiting for the shop to confirm','The shop accepted your order','Your order is packed and ready','Your order is on its way','Your order was delivered'];
+const MESSAGES=['We received your order. The shop will confirm it shortly.','Good news! Your order is accepted and is being prepared.','Your order is packed. Delivery is next.','Your order is out for delivery.','Delivered. Thank you for shopping with us!'];
+const listEl=$('#list');let phone='',firstLoad=true;
+function stage(o){if(o.status==='completed')return 4;if(o.status==='confirmed'||o.status==='processing')return o.step==='out_for_delivery'?3:o.step==='packed'?2:1;return 0}
+function waLink(o){const d=(window._shopSettings?.contact_phone||'').replace(/\D/g,'');if(!d)return '<span></span>';const t=encodeURIComponent('Hi, about my order #'+o.order_number);return `<a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/${d}?text=${t}">${ic('chat')}Message the shop</a>`}
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-copy]');if(!b)return;try{await navigator.clipboard.writeText(b.dataset.copy);toast('Order number copied','ok')}catch{}});
+function orderCard(o){const closed=o.status==='rejected'||o.status==='cancelled',idx=stage(o),items=(o.items||[]).map(i=>`${esc(i.name)} &times; ${esc(i.qty)}`).join(', ');
+const tl=closed?'':`<ul class="tl" aria-label="Order progress">${STEPS.map((l,i)=>{const c=i<idx||idx===4?'done':i===idx?'current':'';return `<li class="${c}"><span class="tl-dot">${c==='done'?ic('check'):''}</span>${esc(l)}${i===idx&&idx!==4?`<small>${esc(HINTS[i])}</small>`:''}</li>`}).join('')}</ul>`;
+const msg=closed?`<div class="msg bad">${o.status==='rejected'?'Sorry, the shop could not accept this order.':'This order was cancelled.'}${phone?' Please call us for details.':''}</div>`:`<div class="msg ${idx===4?'good':''}">${esc(MESSAGES[idx])}</div>`;
+return `<div class="card order-card" data-n="${esc(o.order_number)}"><div class="order-top"><div><div class="num">Order #${esc(o.order_number)}</div><div class="muted small">${esc(fmtDate(o.created_at))}</div></div><strong class="price">${money(o.total)}</strong></div>${items?`<div class="order-items muted">${items}</div>`:''}${msg}${tl}<div class="between mt">${waLink(o)}<button class="btn sm" data-hide>Remove from list</button></div></div>`}
+async function load(){const lookups=Shop.myOrders.get();
+if(!lookups.length){listEl.innerHTML=emptyHtml('list','No orders yet','Orders you place on this device show up here.','<a class="btn dark" href="products.html">Browse products</a>');return}
+try{const rows=await Shop.trackOrders(lookups);listEl.innerHTML=rows.length?rows.map(orderCard).join(''):emptyHtml('search','We could not find your saved orders','')}
+catch(err){console.error(err);if(firstLoad)listEl.innerHTML=`<div class="msg bad" style="margin-bottom:14px">Live status is unavailable. Showing the orders saved on this device; it will update when the connection is back.<br><small>${esc(errMsg(err))}</small></div>`+lookups.map(l=>orderCard({order_number:l.n,created_at:l.d||'',total:l.t||0,status:'pending',items:[]})).join('')}
+firstLoad=false}
+listEl.addEventListener('click',async e=>{if(!e.target.closest('[data-hide]'))return;const n=e.target.closest('.order-card').dataset.n;
+if(!(await confirmDialog('Remove this order from this device? You can track it again with the order number and phone.','Remove')))return;Shop.myOrders.remove(n);load()});
+$('#lookup').addEventListener('submit',async e=>{e.preventDefault();const f=e.target.elements,err=$('#lookup-err'),n=f.n.value.trim().replace(/^#/,''),p=f.p.value.trim();err.hidden=true;
+if(!n||p.replace(/\D/g,'').length<6){err.textContent='Enter the order number and your phone number.';err.hidden=false;return}
+await withBusy($('#lookup-btn'),async()=>{try{const rows=await Shop.trackOrders([{n,p}]);if(!rows.length){err.textContent='No order found. Check the number and phone.';err.hidden=false;return}
+Shop.myOrders.add(n,p);f.n.value='';f.p.value='';toast('Order added to your list','ok');await load()}catch(ex){err.textContent=errMsg(ex);err.hidden=false}})});
+function showPlaced(){let o=null;try{o=JSON.parse(sessionStorage.getItem('last_order')||'null')}catch{o=null}if(!justPlaced||!o||!o.order_number)return;
+$('#placed').innerHTML=`<div class="card confirm"><div class="cicon">${ic('check')}</div><h2 style="font-size:20px">Order sent</h2><p class="muted">Thank you! Our team will contact you shortly to confirm your order.</p><div class="onum">#${esc(o.order_number)}<button type="button" data-copy="${esc(o.order_number)}" aria-label="Copy order number">${ic('copy')}</button></div><p class="help" style="margin:0">Keep this number. Progress shows below and updates by itself.</p></div>`}
+(async()=>{showPlaced();const s=await applyBusinessSettings();if(s&&s.contact_phone)phone=s.contact_phone;await load();
+setInterval(()=>{if(!document.hidden)load()},20000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()})})();
+</script>
 </body>
 </html>

@@ -8,11 +8,11 @@
    Bump CACHE_VERSION on each deployment to clear old files.
    ===================================================================== */
 
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const CACHE_NAME = 'shop-static-' + CACHE_VERSION;
 const SHELL = [
   './', 'index.html', 'products.html', 'cart.html', 'orders.html',
-  'style.css', 'app.js', 'supabase.js', 'manifest.json',
+  'style.css', 'app.js', 'shop.css', 'shop.js', 'supabase.js', 'manifest.json',
   'icons/icon-192.png', 'icons/icon-512.png'
 ];
 

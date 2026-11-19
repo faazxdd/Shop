@@ -1,153 +1,70 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Shop</title>
-  <meta name="description" content="Browse our products and place your order online.">
-  <meta name="theme-color" content="#FFC629">
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Hanken+Grotesk:wght@400..800&display=swap">
-  <script>try{var t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
-  <link rel="stylesheet" href="style.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shop</title>
+<meta name="description" content="Browse our products and place your order online.">
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="shop.css">
 </head>
 <body>
-  <header id="site-header"></header>
-
-  <section class="hero">
-    <div class="container">
-      <img class="hero-logo" src="icons/logo.png" alt="" width="189" height="80">
-      <form id="search-form" class="search-bar" role="search">
-        <input class="input" id="q" type="search" placeholder="What are you looking for?" aria-label="Search products" autocomplete="off" maxlength="80">
-        <button class="btn btn-primary go" type="submit">Search</button>
-      </form>
-      <div class="hero-quick" id="hero-quick" aria-label="Quick categories"></div>
-    </div>
-  </section>
-
-  <div class="trust">
-    <div class="container">
-      <span><i class="i i-shield"></i> Every order confirmed by our team</span>
-      <span><i class="i i-clock"></i> Track your order live</span>
-      <span><i class="i i-heart"></i> Save favourites for later</span>
-      <span><i class="i i-phone"></i> Order from your phone</span>
+<div class="shell">
+<div id="util"></div>
+<header id="site-header"></header>
+<main class="main">
+<section class="hero">
+  <div>
+    <span class="tag">Orders confirmed by phone</span>
+    <h1>Order in minutes. We confirm by phone.</h1>
+    <p>Browse the catalogue, add what you need to your cart and send your order with your name and phone number. No online payment needed.</p>
+    <form id="sf" class="search" role="search"><input class="in" id="q" type="search" placeholder="What are you looking for?" aria-label="Search products" autocomplete="off" maxlength="80"><button class="btn dark" type="submit">Search</button></form>
+    <div class="chips" id="hero-quick" aria-label="Quick categories"></div>
+    <div class="trust">
+      <span><i class="ic-w"></i>Every order confirmed by our team</span>
+      <span><i class="ic-w"></i>Track your order live</span>
+      <span><i class="ic-w"></i>Save favourites for later</span>
+      <span><i class="ic-w"></i>Order from your phone</span>
     </div>
   </div>
-
-  <main class="container">
-    <section class="section" id="saved-sec" hidden aria-labelledby="saved-title">
-      <div class="section-head"><h2 id="saved-title">Saved by you</h2><a href="products.html?saved=1">See all</a></div>
-      <div class="h-scroll" id="saved"></div>
-    </section>
-
-    <section class="section" id="cat-sec" aria-labelledby="cat-title">
-      <div class="section-head"><h2 id="cat-title">Shop by category</h2></div>
-      <div class="cat-tiles" id="categories" aria-live="polite"></div>
-    </section>
-
-    <section class="section" aria-labelledby="latest-title">
-      <div class="section-head"><h2 id="latest-title">From the catalogue</h2><a href="products.html">View all</a></div>
-      <div class="grid" id="products" aria-live="polite">
-        <div class="skeleton" style="min-height:260px"></div><div class="skeleton" style="min-height:260px"></div><div class="skeleton" style="min-height:260px"></div><div class="skeleton" style="min-height:260px"></div>
-      </div>
-    </section>
-
-    <section class="section" aria-labelledby="how-title">
-      <div class="section-head"><h2 id="how-title">How ordering works</h2></div>
-      <div class="how">
-        <div class="how-step"><b>1</b><h3>Add to cart</h3><p>Tap the + on any product. Change quantities in your cart.</p></div>
-        <div class="how-step"><b>2</b><h3>Send your order</h3><p>Enter your name and phone number. That is all we need.</p></div>
-        <div class="how-step"><b>3</b><h3>We confirm</h3><p>Our team calls you, then you can follow the progress here.</p></div>
-      </div>
-    </section>
-
-    <section class="cta-band" id="cta" hidden>
-      <div>
-        <h2>Need help choosing?</h2>
-        <p>Message us and we will help you pick the right product.</p>
-      </div>
-      <div class="row" id="cta-btns"></div>
-    </section>
-  </main>
-
-  <footer id="site-footer"></footer>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
-  <script src="supabase.js"></script>
-  <script src="app.js"></script>
-  <script>
-    renderSiteHeader('home');
-
-    const grid = $('#products');
-
-    // Search goes to the catalogue page.
-    $('#search-form').addEventListener('submit', e => {
-      e.preventDefault();
-      const q = $('#q').value.trim();
-      location.href = 'products.html' + (q ? '?q=' + encodeURIComponent(q) : '');
-    });
-
-    function showSetupHint() {
-      if (SUPABASE_URL.includes('YOUR-PROJECT-REF')) {
-        grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="big"><i class="i i-gear"></i></div>' +
-          'Setup needed: open <strong>supabase.js</strong> and add your Supabase URL and anon key.</div>';
-        return true;
-      }
-      return false;
-    }
-
-    async function loadSaved() {
-      const ids = Shop.favs.get();
-      if (!ids.length) return;
-      try {
-        const rows = await Shop.products({ ids: ids.slice(0, 12), limit: 12 });
-        if (!rows.length) return;
-        $('#saved').innerHTML = rows.map(productCardHtml).join('');
-        $('#saved-sec').hidden = false;
-      } catch (e) { console.error(e); }
-    }
-
-    window.addEventListener('settings-loaded', () => {
-      const s = window._shopSettings;
-      const digits = (s.contact_phone || '').replace(/\D/g, '');
-      if (!digits) return;
-      $('#cta-btns').innerHTML =
-        `<a class="btn btn-primary" target="_blank" rel="noopener" href="https://wa.me/${esc(digits)}"><i class="i i-chat"></i> WhatsApp us</a>` +
-        `<a class="btn" href="tel:${esc(s.contact_phone.replace(/[^+\d]/g, ''))}"><i class="i i-phone"></i> Call</a>`;
-      $('#cta').hidden = false;
-    });
-
-    async function load() {
-      if (showSetupHint()) { $('#cat-sec').hidden = true; return; }
-      try {
-        const settings = await applyBusinessSettings();
-        if (settings) document.title = settings.business_name;
-
-        const [cats, products] = await Promise.all([
-          Shop.categories(),
-          Shop.products({ limit: 8 })
-        ]);
-
-        $('#hero-quick').innerHTML = cats.slice(0, 4).map(c => `<a href="products.html?cat=${encodeURIComponent(c.id)}">${esc(c.name)}</a>`).join('');
-        if (cats.length) {
-          $('#categories').innerHTML = cats.map(c =>
-            `<a class="cat-tile" href="products.html?cat=${encodeURIComponent(c.id)}">${esc(c.name)}<i class="i i-arrow-right"></i></a>`).join('');
-        } else $('#cat-sec').hidden = true;
-
-        grid.innerHTML = products.length
-          ? products.map(productCardHtml).join('')
-          : '<div class="empty" style="grid-column:1/-1"><div class="big"><i class="i i-box"></i></div>No products yet. Check back soon.</div>';
-        loadSaved();
-      } catch (err) {
-        console.error(err);
-        grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="big"><i class="i i-alert"></i></div>' +
-          'Could not load products. Refresh the page to try again.</div>';
-      }
-    }
-    load();
-  </script>
+  <div class="feat" id="feat"></div>
+</section>
+<section id="saved-sec" hidden aria-labelledby="saved-title"><div class="sh-head"><div><div class="sub">Your list</div><h2 id="saved-title">Saved by you</h2></div><a href="products.html?saved=1">See all</a></div><div class="hs" id="saved"></div></section>
+<section id="cat-sec" aria-labelledby="cat-title"><div class="sh-head"><div><div class="sub">Browse</div><h2 id="cat-title">Shop by category</h2></div></div><div class="chips" id="categories" aria-live="polite"></div></section>
+<section aria-labelledby="latest-title"><div class="sh-head"><div><div class="sub">Catalogue</div><h2 id="latest-title">From the catalogue</h2></div><a href="products.html">View all products</a></div>
+<div class="grid" id="products" aria-live="polite"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></section>
+<section aria-labelledby="how-title"><div class="sh-head"><h2 id="how-title">How ordering works</h2></div><div class="how">
+<div class="hw"><b>1</b><h3>Add to cart</h3><p>Tap Add on any product. Change quantities in your cart.</p></div>
+<div class="hw"><b>2</b><h3>Send your order</h3><p>Enter your name and phone number. That is all we need.</p></div>
+<div class="hw"><b>3</b><h3>We confirm</h3><p>Our team calls you, then you can follow the progress here.</p></div></div></section>
+<section class="band" id="cta" hidden><div><h2>Need help choosing?</h2><p>Message us and we will help you pick the right product.</p></div><div class="row" id="cta-btns"></div></section>
+</main>
+<footer id="site-footer"></footer>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
+<script src="supabase.js"></script>
+<script src="shop.js"></script>
+<script>
+renderSiteHeader('home');
+$$('.ic-w').forEach((e,i)=>e.outerHTML=ic(['shield','clock','heart','phone'][i]));
+const grid=$('#products');
+$('#sf').addEventListener('submit',e=>{e.preventDefault();const q=$('#q').value.trim();location.href='products.html'+(q?'?q='+encodeURIComponent(q):'')});
+async function loadSaved(){const ids=Shop.favs.get();if(!ids.length)return;try{const rows=await Shop.products({ids:ids.slice(0,12),limit:12});if(!rows.length)return;$('#saved').innerHTML=rows.map(productCardHtml).join('');$('#saved-sec').hidden=false}catch(e){console.error(e)}}
+window.addEventListener('settings-loaded',()=>{const s=window._shopSettings,d=(s.contact_phone||'').replace(/\D/g,'');if(!d)return;
+$('#cta-btns').innerHTML=`<a class="btn pri" target="_blank" rel="noopener" href="https://wa.me/${esc(d)}">${ic('chat')}WhatsApp us</a><a class="btn" href="tel:${esc(s.contact_phone.replace(/[^+\d]/g,''))}">${ic('phone')}Call</a>`;$('#cta').hidden=false});
+async function load(){try{const s=await applyBusinessSettings();if(s&&s.business_name)document.title=s.business_name;
+const [cats,products]=await Promise.all([Shop.categories(),Shop.products({limit:8})]);
+$('#hero-quick').innerHTML=cats.slice(0,4).map(c=>`<a class="chip" href="products.html?cat=${encodeURIComponent(c.id)}">${esc(c.name)}</a>`).join('');
+if(cats.length)$('#categories').innerHTML=cats.map(c=>`<a class="chip" href="products.html?cat=${encodeURIComponent(c.id)}">${esc(c.name)}</a>`).join('');else $('#cat-sec').hidden=true;
+$('#feat').innerHTML=products.slice(0,2).map(p=>{PC[p.id]=p;const im=(p.images||[])[0];return `<div class="fc" data-open="${esc(p.id)}"><div class="pi">${im?`<img src="${esc(im)}" alt="${esc(p.name)}">`:ic('box')}</div><b>${esc(p.name)}</b><span>${money(p.selling_price)}</span></div>`}).join('');
+grid.innerHTML=products.length?products.map(productCardHtml).join(''):emptyHtml('box','No products yet','Check back soon.');
+loadSaved()}catch(err){console.error(err);grid.innerHTML=emptyHtml('alert','Could not load products','Refresh the page to try again.');$('#cat-sec').hidden=true}}
+load();
+</script>
 </body>
 </html>

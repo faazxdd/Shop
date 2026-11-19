@@ -1,233 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Your cart</title>
-  <meta name="robots" content="noindex">
-  <meta name="theme-color" content="#FFC629">
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Hanken+Grotesk:wght@400..800&display=swap">
-  <script>try{var t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
-  <link rel="stylesheet" href="style.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Your cart</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="shop.css">
 </head>
 <body>
-  <header id="site-header"></header>
-
-  <main class="container" id="main">
-    <div class="page-head"><h1>Your cart</h1></div>
-    <div id="content"><div class="skeleton" style="min-height:200px"></div></div>
-  </main>
-
-  <footer id="site-footer"></footer>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
-  <script src="supabase.js"></script>
-  <script src="app.js"></script>
-  <script>
-    renderSiteHeader('cart', 1);
-    applyBusinessSettings();
-
-    const content = $('#content');
-    let lines = [];            // [{product_id, quantity, product}]
-    const PHONE_RE = /^[+0-9][0-9 ()-]{6,19}$/;
-
-    // If the cart changes, a new checkout attempt gets a fresh idempotency key.
-    window.addEventListener('cart-changed', () => sessionStorage.removeItem('checkout_key'));
-
-    async function load() {
-      if (SUPABASE_URL.includes('YOUR-PROJECT-REF')) {
-        content.innerHTML = '<div class="empty"><div class="big"><i class="i i-gear"></i></div>Setup needed: add your Supabase URL and anon key in <strong>supabase.js</strong>.</div>';
-        return;
-      }
-      try {
-        const before = Shop.cart.get();
-        lines = await Shop.cartDetails();
-
-        // Remove items that are no longer sold, and tell the customer.
-        if (lines.length !== before.length) {
-          Shop.cart.save(lines.map(l => ({ product_id: l.product_id, quantity: l.quantity })));
-          toast('Some items are no longer sold and were removed from your cart', 'error');
-        }
-        render();
-      } catch (err) {
-        console.error(err);
-        content.innerHTML = '<div class="empty"><div class="big"><i class="i i-alert"></i></div>Could not load your cart. Refresh the page to try again.</div>';
-      }
-    }
-
-    function total() {
-      return lines.reduce((sum, l) => sum + Number(l.product.selling_price) * l.quantity, 0);
-    }
-
-    function render() {
-      if (!lines.length) {
-        content.innerHTML = `<div class="empty"><div class="big"><i class="i i-bag"></i></div><h2 style="margin-bottom:4px;color:var(--ink)">Your cart is empty</h2>Add something you like and it will wait here.
-          <div class="mt"><a class="btn btn-primary" href="products.html">Browse products</a></div></div>`;
-        return;
-      }
-
-      const hasOut = lines.some(l => l.product.stock_status === 'out_of_stock');
-      const count = lines.reduce((n, l) => n + l.quantity, 0);
-
-      content.innerHTML = `
-        <div class="cart-layout">
-          <section aria-label="Cart items">
-            <div class="card">
-              <div class="row between card-head">
-                <h2>Cart <span class="count-pill">${count}</span></h2>
-                <button type="button" class="link-danger" data-clear>Clear cart</button>
-              </div>
-              ${lines.map(l => `
-                <div class="cart-line" data-id="${esc(l.product_id)}">
-                  ${productImage(l.product.images?.[0], l.product.name, '')}
-                  <div class="meta">
-                    <div class="line-top">
-                      <div>
-                        <a class="line-name" href="products.html?id=${encodeURIComponent(l.product_id)}">${esc(l.product.name)}</a>
-                        <div class="muted small">${esc(l.product.category_name || '')}${l.product.category_name ? ' &middot; ' : ''}${money(l.product.selling_price)} each
-                          ${l.product.stock_status === 'out_of_stock' ? '&middot; <span style="color:var(--danger)">Out of stock</span>' : ''}</div>
-                      </div>
-                      <button class="icon-btn line-remove" data-remove aria-label="Remove ${esc(l.product.name)}"><i class="i i-close"></i></button>
-                    </div>
-                    <div class="line-bottom">
-                      <div class="qty">
-                        <button type="button" data-minus aria-label="Decrease quantity">&minus;</button>
-                        <span>${l.quantity}</span>
-                        <button type="button" data-plus aria-label="Increase quantity">+</button>
-                      </div>
-                      <strong class="line-price">${money(Number(l.product.selling_price) * l.quantity)}</strong>
-                    </div>
-                  </div>
-                </div>`).join('')}
-            </div>
-
-            <div class="promo-banner">
-              <div>
-                <span class="eyebrow">New arrivals</span>
-                <h3>Fresh picks just landed</h3>
-                <p>Take a look at the latest products in our catalogue.</p>
-              </div>
-              <a class="btn btn-light" href="products.html">Shop now</a>
-            </div>
-            <a class="cart-continue" href="products.html"><i class="i i-arrow-left" style="margin-right:6px"></i> Keep shopping</a>
-          </section>
-
-          <aside class="cart-side" aria-label="Order summary and details">
-            <div class="card">
-              <h2>Promo code</h2>
-              <form class="row promo" id="promo" novalidate>
-                <input class="input" name="code" placeholder="Enter code" maxlength="30" autocomplete="off" aria-label="Promo code">
-                <button class="btn btn-primary" type="submit">Apply</button>
-              </form>
-            </div>
-
-            <form class="card" id="checkout" novalidate>
-              <h2>Order summary</h2>
-              <div class="summary-row"><span>Subtotal (${count} item${count === 1 ? '' : 's'})</span><span>${money(total())}</span></div>
-              <div class="summary-row"><span>Discount</span><span class="minus">- ${money(0)}</span></div>
-              <div class="summary-row summary-total"><span>Total</span><span id="total">${money(total())}</span></div>
-
-              <h3 class="mt">Where should we call you?</h3>
-              <label class="field"><span>Your name</span>
-                <input class="input" name="name" autocomplete="name" maxlength="100" required>
-                <div class="error-text" data-err="name" hidden></div>
-              </label>
-              <label class="field"><span>Phone number</span>
-                <input class="input" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="+971 50 123 4567" required>
-                <div class="error-text" data-err="phone" hidden></div>
-              </label>
-              <label class="field"><span>Delivery address (optional)</span>
-                <textarea class="input" name="address" maxlength="300" autocomplete="street-address"></textarea>
-              </label>
-              ${hasOut ? '<p class="error-text">Remove sold-out items to place your order.</p>' : ''}
-              <button class="btn btn-primary btn-block btn-lg" type="submit" id="place" ${hasOut ? 'disabled' : ''}>Place order</button>
-              <p class="help">No online payment. The shop confirms the final price and delivery when it receives your order.</p>
-            </form>
-          </aside>
-        </div>`;
-    }
-
-    /* ---------- Cart line actions (event delegation) ---------- */
-    content.addEventListener('click', async e => {
-      if (e.target.closest('[data-clear]')) {
-        if (!(await confirmDialog('Remove all items from your cart?', 'Clear cart', true))) return;
-        Shop.cart.clear(); lines = []; render();
-        return;
-      }
-      const row = e.target.closest('.cart-line');
-      if (!row) return;
-      const id = row.dataset.id;
-      const line = lines.find(l => l.product_id === id);
-      if (!line) return;
-
-      if (e.target.closest('[data-remove]')) line.quantity = 0;
-      else if (e.target.closest('[data-minus]')) line.quantity -= 1;
-      else if (e.target.closest('[data-plus]')) line.quantity = Math.min(999, line.quantity + 1);
-      else return;
-
-      const apply = () => {
-        Shop.cart.setQty(id, line.quantity);
-        if (line.quantity <= 0) lines = lines.filter(l => l.product_id !== id);
-        keepFormValues(render);
-      };
-      if (line.quantity <= 0) { row.classList.add('leaving'); setTimeout(apply, 220); }
-      else apply();
-    });
-
-    // Promo codes are not connected to the database yet.
-    content.addEventListener('submit', e => {
-      if (e.target.id !== 'promo') return;
-      e.preventDefault();
-      toast('Promo codes are not available yet', 'error');
-    });
-
-    // Re-render without losing what the customer already typed.
-    function keepFormValues(fn) {
-      const f = $('#checkout');
-      const saved = f ? { name: f.elements.name.value, phone: f.elements.phone.value, address: f.elements.address.value } : null;
-      fn();
-      const g = $('#checkout');
-      if (saved && g) { g.elements.name.value = saved.name; g.elements.phone.value = saved.phone; g.elements.address.value = saved.address; }
-    }
-
-    /* ---------- Checkout ---------- */
-    function setError(form, field, msg) {
-      const el = $(`[data-err="${field}"]`, form);
-      el.textContent = msg || '';
-      el.hidden = !msg;
-      form.elements[field].classList.toggle('invalid', !!msg);
-    }
-
-    content.addEventListener('submit', async e => {
-      if (e.target.id !== 'checkout') return;
-      e.preventDefault();
-      const form = e.target;
-      const name = form.elements.name.value.trim();
-      const phone = form.elements.phone.value.trim();
-      const address = form.elements.address.value.trim();
-
-      let ok = true;
-      if (name.length < 2) { setError(form, 'name', 'Please enter your name'); ok = false; } else setError(form, 'name', '');
-      if (!PHONE_RE.test(phone)) { setError(form, 'phone', 'Please enter a valid phone number'); ok = false; } else setError(form, 'phone', '');
-      if (!ok) return;
-
-      try {
-        await withBusy($('#place'), async () => {
-          await Shop.placeOrder({ name, phone, address });
-        });
-        location.href = 'orders.html#placed';
-      } catch (err) {
-        toast(errMsg(err), 'error');
-        // Stock may have changed; refresh the cart view.
-        load();
-      }
-    });
-
-    load();
-  </script>
+<div class="shell">
+<div id="util"></div>
+<header id="site-header"></header>
+<main class="main" style="gap:18px">
+<div class="page-h"><div class="sub">Step 1 of 2</div><h1>Your cart</h1></div>
+<div id="cart"><div class="skel" style="min-height:160px"></div></div>
+</main>
+<footer id="site-footer"></footer>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
+<script src="supabase.js"></script>
+<script src="shop.js"></script>
+<script>
+renderSiteHeader('cart');
+const box=$('#cart');let lines=[];
+const lineHtml=l=>{const p=l.product,im=(p.images||[])[0],o=stockOf(p)==='out';
+return `<div class="cl" data-id="${esc(l.product_id)}">${im?`<img src="${esc(im)}" alt="${esc(p.name)}">`:`<div class="ph">${ic('box')}</div>`}<div class="info"><b>${esc(p.name)}</b><span class="small muted">${money(p.selling_price)} each</span>${o?'<div class="small" style="color:var(--bad);font-weight:600">Out of stock. Remove it to continue.</div>':''}<br><button class="rm" data-rm>Remove</button></div><div style="text-align:right"><div class="qty"><button data-q="-1" aria-label="Less">${ic('minus')}</button><span>${l.quantity}</span><button data-q="1" aria-label="More">${ic('plus')}</button></div><div class="price" style="margin-top:6px">${money(l.quantity*Number(p.selling_price))}</div></div></div>`};
+function saved(){try{return JSON.parse(localStorage.getItem('cust_v1'))||{}}catch{return{}}}
+async function render(){
+let items=Shop.cart.get();
+if(!items.length){box.innerHTML=emptyHtml('bag','Your cart is empty','Add something you like and it will wait here.','<a class="btn dark" href="products.html">Browse products</a>');return}
+try{lines=await Shop.cartDetails()}catch(e){console.error(e);box.innerHTML=emptyHtml('alert','Could not load your cart','Refresh the page to try again.');return}
+if(!lines.length){Shop.cart.clear();box.innerHTML=emptyHtml('bag','Your cart is empty','The products in it are no longer available.','<a class="btn dark" href="products.html">Browse products</a>');return}
+const total=lines.reduce((s,l)=>s+l.quantity*Number(l.product.selling_price),0),blocked=lines.some(l=>stockOf(l.product)==='out'),c=saved();
+box.innerHTML=`<div class="cart"><div>${lines.map(lineHtml).join('')}</div>
+<form class="card" id="co" novalidate><h2 style="font-size:16px;margin-bottom:10px">Send your order</h2>
+<div class="sum"><span class="muted">Items</span><span>${lines.reduce((n,l)=>n+l.quantity,0)}</span></div>
+<div class="sum t"><span>Total</span><span>${money(total)}</span></div>
+<p class="help">Final prices are confirmed when our team calls you. No online payment is needed.</p>
+<label class="field"><span>Full name</span><input class="in" name="name" autocomplete="name" maxlength="100" value="${esc(c.name||'')}" placeholder="Your name"></label>
+<label class="field"><span>Phone number</span><input class="in" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" value="${esc(c.phone||'')}" placeholder="+971 50 123 4567"></label>
+<label class="field"><span>Delivery address (optional)</span><input class="in" name="address" autocomplete="street-address" maxlength="300" value="${esc(c.address||'')}" placeholder="Area, street, building"></label>
+<div class="err" id="co-err" hidden></div>
+<button class="btn dark wide" type="submit" id="co-btn" ${blocked?'disabled':''}>Place order</button></form></div>`}
+box.addEventListener('click',e=>{const row=e.target.closest('.cl');if(!row)return;const id=row.dataset.id,cur=(Shop.cart.get().find(i=>i.product_id===id)||{}).quantity||0;
+if(e.target.closest('[data-rm]')){Shop.cart.remove(id);render()}
+const q=e.target.closest('[data-q]');if(q){Shop.cart.setQty(id,cur+Number(q.dataset.q));render()}});
+box.addEventListener('submit',async e=>{e.preventDefault();const f=e.target.elements,err=$('#co-err'),name=f.name.value.trim(),phone=f.phone.value.trim(),address=f.address.value.trim();err.hidden=true;
+if(name.length<2){err.textContent='Please enter your name.';err.hidden=false;return}
+if(phone.replace(/\D/g,'').length<6){err.textContent='Please enter a valid phone number.';err.hidden=false;return}
+await withBusy($('#co-btn'),async()=>{try{await Shop.placeOrder({name,phone,address});try{localStorage.setItem('cust_v1',JSON.stringify({name,phone,address}))}catch{}location.href='orders.html#placed'}catch(ex){err.textContent=errMsg(ex);err.hidden=false}})});
+window.addEventListener('settings-loaded',()=>{});
+applyBusinessSettings();render();
+</script>
 </body>
 </html>
