@@ -56,34 +56,43 @@
     return `https://wa.me/${waNumber(o.customer_phone)}?text=${encodeURIComponent(msg)}`;
   }
 
-  /* ---------- Printing (delivery slip / bill) via a hidden iframe ---------- */
-  function printDoc(html) {
-    const f = document.createElement('iframe');
-    f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
-    document.body.appendChild(f);
-    const d = f.contentWindow.document;
-    d.open(); d.write(html); d.close();
-    const go = () => {
-      try { f.contentWindow.focus(); f.contentWindow.print(); } catch { toast('Could not open the print dialog', 'error'); }
-      setTimeout(() => f.remove(), 60000);
-    };
-    setTimeout(go, 250);
-  }
-  function docShell(title, inner) {
-    return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>
+  /* ---------- Printing (delivery slip / bill) ----------
+     The page itself is printed: while printing, everything except #print-area is hidden.
+     (Printing from a hidden iframe is unreliable on phones.) */
+  const PRINT_CSS = `
+    #print-area { display: none; }
+    @media print {
       @page { margin: 8mm; }
-      * { box-sizing: border-box; }
-      body { font: 13px/1.45 Arial, Helvetica, sans-serif; color: #000; max-width: 380px; margin: 0 auto; }
-      h1 { font-size: 18px; margin: 0; text-align: center; }
-      .c { text-align: center; } .muted { color: #444; }
-      hr { border: 0; border-top: 1px dashed #000; margin: 10px 0; }
-      table { width: 100%; border-collapse: collapse; }
-      th, td { padding: 4px 0; text-align: left; vertical-align: top; }
-      .n { text-align: right; white-space: nowrap; padding-left: 8px; }
-      .tot td { border-top: 1px solid #000; font-weight: 700; font-size: 15px; padding-top: 6px; }
-      .pre { white-space: pre-line; }
-    </style></head><body>${inner}</body></html>`;
+      html, body.printing-doc { background: #fff !important; height: auto !important; overflow: visible !important; }
+      body.printing-doc > *:not(#print-area) { display: none !important; }
+      body.printing-doc #print-area { display: block !important; max-width: 380px; margin: 0 auto; background: #fff; color: #000;
+        font: 13px/1.45 Arial, Helvetica, sans-serif; }
+      #print-area * { color: #000 !important; box-shadow: none !important; }
+      #print-area h1 { font-size: 18px; margin: 0; text-align: center; }
+      #print-area .c { text-align: center; } #print-area .muted { color: #444 !important; }
+      #print-area hr { border: 0; border-top: 1px dashed #000; margin: 10px 0; }
+      #print-area table { width: 100%; border-collapse: collapse; }
+      #print-area th, #print-area td { padding: 4px 0; text-align: left; vertical-align: top; border: 0; }
+      #print-area .n { text-align: right; white-space: nowrap; padding-left: 8px; }
+      #print-area .tot td { border-top: 1px solid #000; font-weight: 700; font-size: 15px; padding-top: 6px; }
+      #print-area .pre { white-space: pre-line; }
+    }`;
+  function printDoc(innerHtml) {
+    if (!document.getElementById('print-style')) {
+      const st = document.createElement('style');
+      st.id = 'print-style'; st.textContent = PRINT_CSS;
+      document.head.appendChild(st);
+    }
+    let area = document.getElementById('print-area');
+    if (!area) { area = document.createElement('div'); area.id = 'print-area'; document.body.appendChild(area); }
+    area.innerHTML = innerHtml;
+    document.body.classList.add('printing-doc');
+    window.addEventListener('afterprint', () => document.body.classList.remove('printing-doc'), { once: true });
+    setTimeout(() => {
+      try { window.print(); } catch { document.body.classList.remove('printing-doc'); toast('Printing is not available on this device', 'error'); }
+    }, 150);
   }
+  function docShell(title, inner) { return inner; }
   function slipHtml(o, shop) {
     const rows = (o.order_items || []).map(i => `<tr><td>${esc(i.product_name)}</td><td class="n">${esc(i.quantity)}</td></tr>`).join('');
     return docShell(`Slip #${o.order_number}`, `
