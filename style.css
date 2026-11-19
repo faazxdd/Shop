@@ -636,3 +636,24 @@ main:has(.buybar) { padding-bottom: 88px; }
 .promo-banner p { margin: 0; opacity: .92; max-width: 34ch; }
 .promo-banner .btn { justify-self: start; }
 [data-theme="dark"] .promo-banner { color: #06221A; }
+
+/* ---------- Logo (user's brand) on yellow ---------- */
+.brand .logo { width: auto; height: 42px; padding: 0 10px; border-radius: 12px; transform: none; }
+.brand .logo img { height: 28px; width: auto; }
+.brand:hover .logo { transform: rotate(-2deg); }
+.admin-top .brand-mini { width: auto; height: 34px; padding: 0 8px; transform: none; }
+.admin-top .brand-mini img { height: 20px; width: auto; }
+.login-card .brand-mark { width: auto; height: 60px; padding: 0 16px; transform: none; }
+.login-card .brand-mark img { height: 34px; width: auto; }
+
+/* ---------- Simple search-first hero ---------- */
+.hero { padding: 30px 0 34px; }
+.hero .container { display: flex; flex-direction: column; align-items: center; gap: 0; }
+.hero-logo { height: 76px; width: auto; margin-bottom: 20px; padding: 10px 18px; background: var(--saffron); border: 2px solid var(--ink); border-radius: 18px; box-shadow: var(--pop); box-sizing: content-box; }
+.hero .search-bar { width: 100%; max-width: 560px; }
+.hero-quick { justify-content: center; }
+@media (min-width: 900px) {
+  .hero { padding: 56px 0 60px; }
+  .hero .container { display: flex; }
+  .hero-logo { height: 92px; }
+}

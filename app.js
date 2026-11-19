@@ -165,7 +165,7 @@ function renderSiteHeader(active = '', step = 0) {
   host.className = 'site-header';
   host.innerHTML = `
     <div class="container">
-      <a class="brand" href="index.html" aria-label="Home"><span class="logo" id="brand-mark">S</span><span id="brand-name">Shop</span></a>
+      <a class="brand" href="index.html" aria-label="Home"><span class="logo"><img src="icons/logo.png" alt="" width="76" height="32"></span><span id="brand-name" class="sr-only">Shop</span></a>
       <nav class="nav-links" aria-label="Main">
         ${link('index.html', 'Home', 'home')}
         ${link('products.html', 'Shop', 'products')}
@@ -220,8 +220,6 @@ async function applyBusinessSettings() {
     if (!s) return null;
     const brand = $('#brand-name');
     if (brand) brand.textContent = s.business_name;
-    const mark = $('#brand-mark');
-    if (mark && s.business_name) mark.textContent = s.business_name.trim().charAt(0).toUpperCase();
     const foot = $('#site-footer');
     if (foot) {
       const digits = (s.contact_phone || '').replace(/\D/g, '');

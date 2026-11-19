@@ -19,21 +19,12 @@
 
   <section class="hero">
     <div class="container">
-      <div>
-        <h1>Pick it. Send it. We&rsquo;ll call.</h1>
-        <p class="lead">Browse the catalogue, add what you need and send your order in a minute. No payment online. Our team confirms every order by phone.</p>
-        <form id="search-form" class="search-bar" role="search">
-          <input class="input" id="q" type="search" placeholder="What are you looking for?" aria-label="Search products" autocomplete="off" maxlength="80">
-          <button class="btn btn-primary go" type="submit">Search</button>
-        </form>
-        <div class="hero-quick" id="hero-quick" aria-label="Quick categories"></div>
-      </div>
-      <div class="hero-art" id="hero-art" aria-hidden="true">
-        <div class="deal"><div class="thumb-empty"><i class="i i-camera"></i></div></div>
-        <div class="deal"><div class="thumb-empty"><i class="i i-camera"></i></div></div>
-        <div class="deal"><div class="thumb-empty"><i class="i i-camera"></i></div></div>
-        <div class="burst">No online payment</div>
-      </div>
+      <img class="hero-logo" src="icons/logo.png" alt="" width="189" height="80">
+      <form id="search-form" class="search-bar" role="search">
+        <input class="input" id="q" type="search" placeholder="What are you looking for?" aria-label="Search products" autocomplete="off" maxlength="80">
+        <button class="btn btn-primary go" type="submit">Search</button>
+      </form>
+      <div class="hero-quick" id="hero-quick" aria-label="Quick categories"></div>
     </div>
   </section>
 
@@ -108,16 +99,6 @@
       return false;
     }
 
-    // The hero collage uses real products from the catalogue.
-    function fillHero(products) {
-      const withImg = products.filter(p => p.images && p.images[0]).slice(0, 3);
-      const deals = $$('#hero-art .deal');
-      withImg.forEach((p, i) => {
-        deals[i].innerHTML = `<img src="${esc(p.images[0])}" alt=""><span class="tag">${esc(money(p.selling_price))}</span>`;
-      });
-      if (withImg.length < 3) deals.slice(withImg.length).forEach(d => d.remove());
-    }
-
     async function loadSaved() {
       const ids = Shop.favs.get();
       if (!ids.length) return;
@@ -149,7 +130,6 @@
           Shop.categories(),
           Shop.products({ limit: 8 })
         ]);
-        fillHero(products);
 
         $('#hero-quick').innerHTML = cats.slice(0, 4).map(c => `<a href="products.html?cat=${encodeURIComponent(c.id)}">${esc(c.name)}</a>`).join('');
         if (cats.length) {
