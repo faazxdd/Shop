@@ -114,6 +114,271 @@
       <hr><div class="c">Thank you!</div>`);
   }
 
+  /* ---------- Share bill (PDF) ----------
+     Builds a small PDF here (standard Helvetica font, English text), so no PDF library is needed.
+     Opens the native share sheet when the browser can share files; otherwise downloads the PDF. */
+  const PDF_W = 595, PDF_H = 842;                       // A4, in points
+  // Helvetica character widths (1/1000 em) for ASCII 32..126, used to align and wrap text.
+  const HELV_W = [
+    278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278,
+    556, 556, 556, 556, 556, 556, 556, 556, 556, 556,
+    278, 278, 584, 584, 584, 556, 1015,
+    667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611,
+    278, 278, 278, 469, 556, 333,
+    556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500,
+    334, 260, 334, 584];
+  const HELV_BOLD_W = [
+    278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333, 278, 278,
+    556, 556, 556, 556, 556, 556, 556, 556, 556, 556,
+    333, 333, 584, 584, 584, 611, 975,
+    722, 722, 722, 722, 667, 611, 778, 722, 278, 556, 722, 611, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611,
+    333, 278, 333, 584, 556, 333,
+    556, 611, 556, 611, 556, 333, 611, 611, 278, 278, 556, 278, 889, 611, 611, 611, 611, 389, 556, 333, 611, 556, 778, 556, 556, 500,
+    389, 280, 389, 584];
+  const PDF_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  // Plain printable ASCII only (the built-in PDF font cannot draw anything else).
+  function pdfText(v) {
+    return String(v == null ? '' : v)
+      .replace(/[​-‍﻿]/g, '')
+      .replace(/[‘’‛]/g, "'").replace(/[“”]/g, '"')
+      .replace(/[–—−]/g, '-').replace(/…/g, '...').replace(/×/g, 'x')
+      .replace(/\s+/g, ' ')
+      .normalize('NFKD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^\x20-\x7E]/g, '?')
+      .trim();
+  }
+  function pdfWidth(s, size, bold) {
+    const t = bold ? HELV_BOLD_W : HELV_W;
+    let w = 0;
+    for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); w += (c >= 32 && c <= 126) ? t[c - 32] : 556; }
+    return w * size / 1000;
+  }
+  function pdfWrap(s, maxW, size, bold) {
+    const lines = []; let line = '';
+    for (let w of s.split(' ')) {
+      while (pdfWidth(w, size, bold) > maxW && w.length > 1) {      // a single very long word
+        let k = w.length;
+        while (k > 1 && pdfWidth(w.slice(0, k), size, bold) > maxW) k--;
+        if (line) { lines.push(line); line = ''; }
+        lines.push(w.slice(0, k)); w = w.slice(k);
+      }
+      const test = line ? line + ' ' + w : w;
+      if (pdfWidth(test, size, bold) <= maxW) line = test;
+      else { if (line) lines.push(line); line = w; }
+    }
+    if (line) lines.push(line);
+    return lines.length ? lines : [''];
+  }
+  function pdfFit(s, maxW, sizes, bold) {                           // biggest size that fits, else shorten
+    for (const size of sizes) if (pdfWidth(s, size, bold) <= maxW) return { text: s, size };
+    const size = sizes[sizes.length - 1];
+    let t = s;
+    while (t.length > 1 && pdfWidth(t + '...', size, bold) > maxW) t = t.slice(0, -1);
+    return { text: t + '...', size };
+  }
+  function pdfMoney(v, cur) {
+    const n = Number(v);
+    return `${cur} ${(isFinite(n) ? n : 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+  }
+  function pdfDate(iso) {
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getDate()} ${PDF_MONTHS[d.getMonth()]} ${d.getFullYear()}, ${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+
+  // Tiny PDF writer: pages hold drawing commands; finish() returns the file bytes.
+  function pdfDoc() {
+    const pages = [];
+    let cmds = null;
+    const f = n => n.toFixed(2);
+    const col = c => c.map(f).join(' ');
+    const pdfEsc = s => s.replace(/[\\()]/g, '\\$&');
+    return {
+      addPage() { cmds = []; pages.push(cmds); },
+      use(i) { cmds = pages[i]; },
+      count() { return pages.length; },
+      rect(x, y, w, h, c) { cmds.push(`${col(c)} rg ${f(x)} ${f(PDF_H - y - h)} ${f(w)} ${f(h)} re f`); },
+      line(x1, y1, x2, y2, c, w) { cmds.push(`${col(c)} RG ${f(w || 0.6)} w ${f(x1)} ${f(PDF_H - y1)} m ${f(x2)} ${f(PDF_H - y2)} l S`); },
+      text(s, x, y, o) {                                            // y = text baseline, measured from the top
+        o = o || {};
+        s = pdfText(s);
+        const size = o.size || 10, bold = !!o.bold, w = pdfWidth(s, size, bold);
+        const px = o.align === 'right' ? x - w : o.align === 'center' ? x - w / 2 : x;
+        cmds.push(`BT /${bold ? 'F2' : 'F1'} ${f(size)} Tf ${col(o.color || [0, 0, 0])} rg ${f(px)} ${f(PDF_H - y)} Td (${pdfEsc(s)}) Tj ET`);
+      },
+      finish(title) {
+        const objs = [null];
+        objs.push('<< /Type /Catalog /Pages 2 0 R >>');
+        objs.push(`<< /Type /Pages /Kids [${pages.map((_, i) => `${5 + 2 * i} 0 R`).join(' ')}] /Count ${pages.length} >>`);
+        objs.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+        objs.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+        pages.forEach((c, i) => {
+          const stream = c.join('\n');
+          objs.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PDF_W} ${PDF_H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${6 + 2 * i} 0 R >>`);
+          objs.push(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+        });
+        objs.push(`<< /Title (${pdfEsc(pdfText(title))}) /Producer (FZ Cart) >>`);
+        let out = '%PDF-1.4\n%âãÏÓ\n';
+        const offs = [];
+        for (let i = 1; i < objs.length; i++) { offs[i] = out.length; out += `${i} 0 obj\n${objs[i]}\nendobj\n`; }
+        const xref = out.length;
+        out += `xref\n0 ${objs.length}\n0000000000 65535 f \n`;
+        for (let i = 1; i < objs.length; i++) out += `${String(offs[i]).padStart(10, '0')} 00000 n \n`;
+        out += `trailer\n<< /Size ${objs.length} /Root 1 0 R /Info ${objs.length - 1} 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+        const bytes = new Uint8Array(out.length);
+        for (let i = 0; i < out.length; i++) bytes[i] = out.charCodeAt(i) & 255;
+        return bytes;
+      }
+    };
+  }
+
+  function buildBillPdf(o, shop) {
+    shop = shop || {};
+    const M = 40, R = PDF_W - M, CW = R - M, BOTTOM = PDF_H - 56;
+    const INK = [0.1, 0.1, 0.1], MUTED = [0.4, 0.4, 0.4], RULE = [0.82, 0.82, 0.82], SHADE = [0.94, 0.94, 0.94];
+    const BAND = [0.12, 0.16, 0.2], WHITE = [1, 1, 1], SOFT = [0.8, 0.84, 0.88];
+    const TOTAL_R = R - 8, PRICE_R = TOTAL_R - 95, QTY_R = PRICE_R - 95, ITEM_X = M + 8, ITEM_W = QTY_R - 45 - ITEM_X;
+
+    let cur = pdfText(shop.currency || shop.currency_code);
+    if (!cur || cur.indexOf('?') >= 0) cur = 'AED';
+    const shopName = pdfText(shop.business_name) || 'Shop';
+    const orderNo = pdfText(o.order_number);
+    const items = (o.order_items || []).map(i => {
+      const qty = Number(i.quantity) || 0, unit = Number(i.unit_price) || 0;
+      const line = (i.line_total != null && isFinite(Number(i.line_total))) ? Number(i.line_total) : qty * unit;
+      return { name: pdfText(i.product_name) || 'Item', qty, unit, line };
+    });
+    const total = (o.total != null && isFinite(Number(o.total))) ? Number(o.total) : items.reduce((a, r) => a + r.line, 0);
+
+    const doc = pdfDoc();
+    doc.addPage();
+
+    // Header band: shop name and contact details
+    const contact = [];
+    const phone = pdfText(shop.contact_phone); if (phone) contact.push('Tel: ' + phone);
+    const mail = pdfText(shop.contact_email || shop.email); if (mail) contact.push(mail);
+    const addr = pdfText(shop.address || shop.business_address);
+    if (addr) pdfWrap(addr, 340, 9.5, false).slice(0, 2).forEach(l => contact.push(l));
+    const lastBase = contact.length ? 66 + (contact.length - 1) * 13 : 46;
+    doc.rect(0, 0, PDF_W, lastBase + 18, BAND);
+    const nm = pdfFit(shopName, 360, [20, 17, 14], true);
+    doc.text(nm.text, M, 46, { size: nm.size, bold: true, color: WHITE });
+    doc.text('BILL', R, 46, { size: 20, bold: true, color: WHITE, align: 'right' });
+    contact.forEach((c, k) => doc.text(c, M, 66 + k * 13, { size: 9.5, color: SOFT }));
+
+    // Customer (left) and order number / date (right)
+    let y = lastBase + 18 + 30;
+    doc.text('BILL TO', M, y, { size: 8.5, bold: true, color: MUTED });
+    doc.text('ORDER', R, y, { size: 8.5, bold: true, color: MUTED, align: 'right' });
+    let ly = y + 17;
+    pdfWrap(pdfText(o.customer_name) || 'Customer', 260, 12, true).slice(0, 2).forEach(l => {
+      doc.text(l, M, ly, { size: 12, bold: true, color: INK }); ly += 15;
+    });
+    const cphone = pdfText(o.customer_phone);
+    if (cphone) { doc.text(cphone, M, ly, { size: 10.5, color: INK }); ly += 14; }
+    doc.text('#' + orderNo, R, y + 17, { size: 12, bold: true, color: INK, align: 'right' });
+    const when = pdfDate(o.created_at);
+    if (when) doc.text(when, R, y + 32, { size: 10.5, color: INK, align: 'right' });
+    y = Math.max(ly, y + 32) + 18;
+
+    const tableHead = () => {
+      doc.rect(M, y, CW, 22, SHADE);
+      const b = y + 15, st = { size: 9, bold: true, color: MUTED };
+      doc.text('ITEM', ITEM_X, b, st);
+      doc.text('QTY', QTY_R, b, { ...st, align: 'right' });
+      doc.text('UNIT PRICE', PRICE_R, b, { ...st, align: 'right' });
+      doc.text('TOTAL', TOTAL_R, b, { ...st, align: 'right' });
+      y += 22;
+    };
+    const newPage = withHead => {
+      doc.addPage();
+      doc.text(pdfFit(shopName, 320, [11], true).text, M, 42, { size: 11, bold: true, color: INK });
+      doc.text('Order #' + orderNo + ' (continued)', R, 42, { size: 9.5, color: MUTED, align: 'right' });
+      doc.line(M, 52, R, 52, RULE, 0.8);
+      y = 70;
+      if (withHead) tableHead();
+    };
+
+    // Items: product, quantity, unit price, line total
+    tableHead();
+    items.forEach(it => {
+      const lines = pdfWrap(it.name, ITEM_W, 10, false);
+      const h = lines.length * 13 + 12;
+      if (y + h > BOTTOM) newPage(true);
+      const b = y + 15;
+      lines.forEach((l, k) => doc.text(l, ITEM_X, b + k * 13, { size: 10, color: INK }));
+      doc.text(String(it.qty), QTY_R, b, { size: 10, color: INK, align: 'right' });
+      doc.text(pdfMoney(it.unit, cur), PRICE_R, b, { size: 10, color: INK, align: 'right' });
+      doc.text(pdfMoney(it.line, cur), TOTAL_R, b, { size: 10, color: INK, align: 'right' });
+      y += h;
+      doc.line(M, y, R, y, RULE, 0.6);
+    });
+    if (!items.length) {
+      doc.text('No items', ITEM_X, y + 15, { size: 10, color: MUTED });
+      y += 28; doc.line(M, y, R, y, RULE, 0.6);
+    }
+
+    // Grand total and thank-you message
+    if (y + 120 > BOTTOM) newPage(false);
+    y += 14;
+    doc.rect(M, y, CW, 34, SHADE);
+    doc.text('Grand total', ITEM_X, y + 22, { size: 13, bold: true, color: INK });
+    doc.text(pdfMoney(total, cur), TOTAL_R, y + 22, { size: 13, bold: true, color: INK, align: 'right' });
+    y += 34 + 36;
+    doc.text('Thank you for your order!', PDF_W / 2, y, { size: 13, bold: true, color: INK, align: 'center' });
+    const ty = pdfFit('Thank you for shopping with ' + shopName, CW, [10], false);
+    doc.text(ty.text, PDF_W / 2, y + 18, { size: 10, color: MUTED, align: 'center' });
+
+    const n = doc.count();
+    if (n > 1) for (let k = 0; k < n; k++) {
+      doc.use(k);
+      doc.text(`Page ${k + 1} of ${n}`, PDF_W / 2, PDF_H - 28, { size: 8.5, color: MUTED, align: 'center' });
+    }
+    return doc.finish('Bill - Order #' + orderNo);
+  }
+
+  function billPdfFile(o, shop) {
+    const bytes = buildBillPdf(o, shop);
+    const no = String(o.order_number == null ? '' : o.order_number).replace(/[^A-Za-z0-9_-]+/g, '');
+    const name = `FZ-Cart-Bill-Order-${no || 'Bill'}.pdf`;
+    try { return new File([bytes], name, { type: 'application/pdf' }); }
+    catch { const b = new Blob([bytes], { type: 'application/pdf' }); b.name = name; return b; }   // very old browsers
+  }
+
+  function downloadPdf(file) {
+    const url = URL.createObjectURL(file);
+    if ('download' in document.createElement('a')) {
+      const a = document.createElement('a');
+      a.href = url; a.download = file.name; a.style.display = 'none';
+      document.body.appendChild(a); a.click(); a.remove();
+    } else {
+      window.open(url, '_blank');                                   // no download support: open it so it can be saved
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 120000);
+  }
+
+  async function shareBillPdf(o, shop) {
+    const file = billPdfFile(o, shop);
+    let canShareFile = false;
+    try { canShareFile = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [file] })); } catch { canShareFile = false; }
+    if (canShareFile) {
+      try {
+        await navigator.share({ files: [file], title: `Bill - Order #${o.order_number}` });
+        return;
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;               // they closed the share sheet: nothing to report
+        console.warn('Share sheet failed, downloading instead', err);
+      }
+    }
+    downloadPdf(file);
+    toast(canShareFile
+      ? 'Could not open the share sheet, so the bill PDF was downloaded instead.'
+      : 'Sharing files is not supported on this browser, so the bill PDF was downloaded. You can send it from your downloads.', 'success');
+  }
+  /* ---------- end Share bill (PDF) ---------- */
+
   function orderDetail(o, onChanged) {
     const items = o.order_items || [];
     const actions = ACTIONS[o.status] || [];
@@ -138,6 +403,7 @@
       <div class="row wrap mt">
         <button class="btn btn-sm" type="button" data-print="slip">Print delivery slip</button>
         <button class="btn btn-sm" type="button" data-print="bill">Print bill</button>
+        <button class="btn btn-sm" type="button" id="share-bill">Share bill (PDF)</button>
       </div>
 
       ${canStep(o) ? `<h3 class="mt">Delivery progress</h3>
@@ -154,6 +420,20 @@
     $$('[data-print]', body).forEach(b => b.onclick = async () => {
       const shop = await getShop();
       printDoc(b.dataset.print === 'bill' ? billHtml(o, shop) : slipHtml(o, shop));
+    });
+
+    // Share bill (PDF). Separate from Print bill. Shop settings are warmed up front so the
+    // share sheet can open straight after the tap (iOS only allows sharing right after a tap).
+    getShop();
+    const shareBtn = $('#share-bill', body);
+    if (shareBtn) shareBtn.onclick = () => withBusy(shareBtn, async () => {
+      try {
+        const shop = shopCfg || await getShop();
+        await shareBillPdf(o, shop);
+      } catch (err) {
+        console.error(err);
+        toast('Could not create the bill PDF. ' + errMsg(err), 'error');
+      }
     });
 
     const waBtn = $('#wa-update', body);
