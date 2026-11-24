@@ -130,8 +130,43 @@
             <select class="input" id="p-stock"><option value="">All stock</option><option value="low">Low stock</option><option value="out">Out of stock</option></select>
             <button class="btn btn-primary" id="p-add"><i class="i i-plus"></i> Add product</button>
           </div>
+          <div class="toolbar" id="p-bulk">
+            <label><input type="checkbox" id="p-all"> Select all shown</label>
+            <span id="p-count">0 selected</span>
+            <button class="btn" id="p-archive">Archive selected</button>
+            <button class="btn" id="p-delete">Delete selected</button>
+          </div><div id="p-result" role="status"></div>
           <div id="p-list"></div>`;
         const list = $('#p-list');
+        let busy = false;
+        const selected = () => [...list.querySelectorAll('[data-select]:checked')].map(x => x.value);
+        function sync() {
+          const boxes = [...list.querySelectorAll('[data-select]')], n = selected().length;
+          $('#p-count').textContent = n + ' selected';
+          $('#p-all').checked = boxes.length > 0 && n === boxes.length;
+          $('#p-all').indeterminate = n > 0 && n < boxes.length;
+          $('#p-archive').disabled = $('#p-delete').disabled = busy || !n;
+        }
+        $('#p-all').onchange = e => { list.querySelectorAll('[data-select]').forEach(x => x.checked = e.target.checked); sync(); };
+        list.onchange = sync;
+        async function bulk(archive) {
+          if (busy) return;
+          const ids = selected(); if (!ids.length) return;
+          if (!confirm(`${archive ? 'Archive' : 'Permanently delete'} ${ids.length} selected products? ${archive ? 'They will disappear from the shop.' : 'Products with linked history may be blocked. This cannot be undone.'}`)) return;
+          if (!archive && prompt('Type DELETE to confirm permanent deletion') !== 'DELETE') return;
+          busy = true; sync();
+          let ok = 0; const failures = [];
+          for (const id of ids) {
+            try { if (archive) await Admin.archiveProduct(id); else await Admin.deleteProduct(id); ok++; }
+            catch (err) { failures.push((list._rows?.[id]?.name || id) + ': ' + errMsg(err)); }
+          }
+          busy = false;
+          await load();
+          $('#p-result').textContent = `${ok} ${archive ? 'archived' : 'deleted'}, ${failures.length} failed. ` + failures.join(' | ');
+        }
+        $('#p-archive').onclick = () => bulk(true);
+        $('#p-delete').onclick = () => bulk(false);
+
 
         async function load() {
           list.innerHTML = '<div class="skeleton"></div>';
@@ -139,6 +174,7 @@
             const rows = await Admin.products({ search: $('#p-search').value, status: $('#p-status').value, stock: $('#p-stock').value });
             list.innerHTML = rows.length ? rows.map(p => `
               <div class="card list-card" data-id="${esc(p.id)}">
+                <input type="checkbox" data-select value="${esc(p.id)}" aria-label="Select ${esc(p.name)}">
                 ${p.images?.[0] ? `<img class="thumb-sm" src="${esc(p.images[0])}" alt="" loading="lazy">` : '<div class="thumb-sm thumb-empty" style="font-size:1.2rem"><i class="i i-camera"></i></div>'}
                 <div class="grow">
                   <div class="title">${esc(p.name)}</div>
@@ -154,7 +190,7 @@
                   <button class="btn btn-sm" data-edit>Edit</button>
                 </div>
               </div>`).join('') : '<div class="empty"><div class="big"><i class="i i-box"></i></div>No products found.</div>';
-            list._rows = Object.fromEntries(rows.map(p => [p.id, p]));
+            list._rows = Object.fromEntries(rows.map(p => [p.id, p])); sync();
           } catch (err) { list.innerHTML = `<div class="empty">${esc(errMsg(err))}</div>`; }
         }
 
@@ -200,7 +236,7 @@
           <div class="field"><span>Photos</span>
             <div class="image-grid" id="imgs"></div>
             <input type="file" id="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
-            <button type="button" class="btn btn-sm" id="addimg"><i class="i i-plus"></i> Add photos</button>
+            <div class="row wrap"><input class="input" id="image-url" type="url" placeholder="HTTPS image URL"><button type="button" class="btn btn-sm" id="add-url">Add URL</button><button type="button" class="btn btn-sm" id="find-img">Find images</button></div><p class="help">Use images you have permission to publish. Search opens a separate tab.</p><button type="button" class="btn btn-sm" id="addimg"><i class="i i-plus"></i> Add photos</button>
           </div>
           <div class="row" style="justify-content:space-between;margin-top:8px">
             ${isNew ? '<span></span>' : '<button type="button" class="btn btn-danger" id="del">Delete</button>'}
@@ -214,6 +250,8 @@
       }
       drawImgs();
       grid.onclick = e => { const b = e.target.closest('[data-rm]'); if (b) { images.splice(Number(b.dataset.rm), 1); drawImgs(); } };
+      $('#find-img', body).onclick=()=>{const f=$('#pf',body).elements;const q=[f.brand.value,f.name.value,f.sku.value].filter(Boolean).join(' ');if(!q.trim())return toast('Enter product name first','error');window.open('https://www.google.com/search?tbm=isch&q='+encodeURIComponent(q),'_blank','noopener,noreferrer')};
+      $('#add-url',body).onclick=()=>{try{const u=new URL($('#image-url',body).value.trim());if(u.protocol!=='https:')throw Error();if(!images.includes(u.href))images.push(u.href);drawImgs();$('#image-url',body).value=''}catch{toast('Enter a valid HTTPS image URL','error')}};
       $('#addimg', body).onclick = () => $('#file', body).click();
       $('#file', body).onchange = async e => {
         const btn = $('#addimg', body);

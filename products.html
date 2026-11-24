@@ -4,12 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Products</title>
-<meta name="theme-color" content="#160D2B">
+<meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<script>try{document.documentElement.dataset.shopTheme=localStorage.getItem("shop-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}</script>
 <link rel="stylesheet" href="shop.css">
 </head>
 <body>
@@ -60,7 +61,9 @@ $('#sort').addEventListener('change',e=>{st.sort=e.target.value;sync();fetchPage
 $('#more').addEventListener('click',e=>withBusy(e.currentTarget,()=>fetchPage(false)));
 applyBusinessSettings();
 Shop.categories().then(drawCats).catch(console.error);
+window.addEventListener('favs-changed',()=>{if(st.saved)fetchPage(true)});
 fetchPage(true);
+if(P.get("product"))openProduct(P.get("product"));
 </script>
 </body>
 </html>

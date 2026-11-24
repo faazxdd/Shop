@@ -5,12 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Your cart</title>
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#160D2B">
+<meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<script>try{document.documentElement.dataset.shopTheme=localStorage.getItem("shop-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}</script>
 <link rel="stylesheet" href="shop.css">
 </head>
 <body>
@@ -37,9 +38,10 @@ let items=Shop.cart.get();
 if(!items.length){box.innerHTML=emptyHtml('bag','Your cart is empty','Add something you like and it will wait here.','<a class="btn dark" href="products.html">Browse products</a>');return}
 try{lines=await Shop.cartDetails()}catch(e){console.error(e);box.innerHTML=emptyHtml('alert','Could not load your cart','Refresh the page to try again.');return}
 if(!lines.length){Shop.cart.clear();box.innerHTML=emptyHtml('bag','Your cart is empty','The products in it are no longer available.','<a class="btn dark" href="products.html">Browse products</a>');return}
-const total=lines.reduce((s,l)=>s+l.quantity*Number(l.product.selling_price),0),blocked=lines.some(l=>stockOf(l.product)==='out'),c=saved();
+const missing=items.length!==lines.length;
+const total=lines.reduce((s,l)=>s+l.quantity*Number(l.product.selling_price),0),blocked=missing||lines.some(l=>stockOf(l.product)==='out'),c=saved();
 box.innerHTML=`<div class="cart"><div>${lines.map(lineHtml).join('')}</div>
-<form class="card" id="co" novalidate><h2 style="font-size:16px;margin-bottom:10px">Send your order</h2>
+<form class="card" id="co" novalidate>${missing?'<p class="msg bad">Some items are no longer available. <button type="button" class="btn sm" id="remove-missing">Remove unavailable items</button></p>':''}<h2 style="font-size:16px;margin-bottom:10px">Send your order</h2>
 <div class="sum"><span class="muted">Items</span><span>${lines.reduce((n,l)=>n+l.quantity,0)}</span></div>
 <div class="sum t"><span>Total</span><span>${money(total)}</span></div>
 <p class="help">Final prices are confirmed when our team calls you. No online payment is needed.</p>
@@ -48,7 +50,7 @@ box.innerHTML=`<div class="cart"><div>${lines.map(lineHtml).join('')}</div>
 <label class="field"><span>Delivery address (optional)</span><input class="in" name="address" autocomplete="street-address" maxlength="300" value="${esc(c.address||'')}" placeholder="Area, street, building"></label>
 <div class="err" id="co-err" hidden></div>
 <button class="btn dark wide" type="submit" id="co-btn" ${blocked?'disabled':''}>Place order</button></form></div>`}
-box.addEventListener('click',e=>{const row=e.target.closest('.cl');if(!row)return;const id=row.dataset.id,cur=(Shop.cart.get().find(i=>i.product_id===id)||{}).quantity||0;
+box.addEventListener('click',e=>{if(e.target.closest('#remove-missing')){Shop.cart.save(Shop.cart.get().filter(i=>lines.some(l=>l.product_id===i.product_id)));render();return}const row=e.target.closest('.cl');if(!row)return;const id=row.dataset.id,cur=(Shop.cart.get().find(i=>i.product_id===id)||{}).quantity||0;
 if(e.target.closest('[data-rm]')){Shop.cart.remove(id);render()}
 const q=e.target.closest('[data-q]');if(q){Shop.cart.setQty(id,cur+Number(q.dataset.q));render()}});
 box.addEventListener('submit',async e=>{e.preventDefault();const f=e.target.elements,err=$('#co-err'),name=f.name.value.trim(),phone=f.phone.value.trim(),address=f.address.value.trim();err.hidden=true;

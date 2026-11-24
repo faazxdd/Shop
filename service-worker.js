@@ -8,7 +8,7 @@
    Bump CACHE_VERSION on each deployment to clear old files.
    ===================================================================== */
 
-const CACHE_VERSION = 'v7-luxury';
+const CACHE_VERSION = 'v12-clean-commerce';
 const CACHE_NAME = 'shop-static-' + CACHE_VERSION;
 const SHELL = [
   './', 'index.html', 'products.html', 'cart.html', 'orders.html',
@@ -43,7 +43,7 @@ self.addEventListener('fetch', event => {
         if (res.ok) { const copy = res.clone(); caches.open(CACHE_NAME).then(c => c.put(req, copy)); }
         return res;
       })
-      .catch(() => caches.match(req).then(hit => hit || caches.match('index.html')))
+      .catch(() => caches.match(req).then(hit => hit || (req.mode === 'navigate' ? caches.match('index.html') : new Response('', {status:503}))))
   );
 });
 
