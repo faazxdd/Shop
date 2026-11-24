@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Products</title>
-<meta name="theme-color" content="#0f172a">
+<meta name="theme-color" content="#160D2B">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -36,21 +36,23 @@
 const P=new URLSearchParams(location.search),PAGE=24;
 const st={q:(P.get('q')||'').slice(0,80),cat:P.get('cat')||'',sort:['price_asc','price_desc'].includes(P.get('sort'))?P.get('sort'):'name',saved:P.get('saved')==='1',off:0};
 renderSiteHeader(st.saved?'saved':'shop');
-const grid=$('#products');let shown=0;
+const grid=$('#products');let shown=0,requestId=0;
 $('#q').value=st.q;$('#sort').value=st.sort;if(P.get('focus'))setTimeout(()=>$('#q').focus(),50);
 if(st.saved){$('#p-title').textContent='Saved products';$('#p-sub').textContent='Your list'}
 function sync(){const u=new URLSearchParams();if(st.q)u.set('q',st.q);if(st.cat)u.set('cat',st.cat);if(st.sort!=='name')u.set('sort',st.sort);if(st.saved)u.set('saved','1');history.replaceState(null,'',location.pathname+(u.toString()?'?'+u:''))}
 async function fetchPage(reset){
+const request=++requestId;
 if(reset){st.off=0;shown=0;grid.innerHTML='<div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div>';$('#more').hidden=true}
 try{let rows;
 if(st.saved){const ids=Shop.favs.get();rows=ids.length?await Shop.products({ids,limit:100,sort:st.sort,search:st.q,categoryId:st.cat}):[]}
 else rows=await Shop.products({search:st.q,categoryId:st.cat,sort:st.sort,limit:PAGE,offset:st.off});
+if(request!==requestId)return;
 if(reset)grid.innerHTML='';
 if(!rows.length&&reset)grid.innerHTML=st.saved&&!Shop.favs.get().length?emptyHtml('heart','Nothing saved yet','Tap the heart on any product to keep it here.','<a class="btn dark" href="products.html">Browse products</a>'):emptyHtml('search','No products found','Try a different search or category.');
 else grid.insertAdjacentHTML('beforeend',rows.map(productCardHtml).join(''));
 shown+=rows.length;st.off+=rows.length;$('#count').textContent=shown?shown+' product'+(shown===1?'':'s')+' shown':'';
 $('#more').hidden=st.saved||rows.length<PAGE}
-catch(err){console.error(err);if(reset)grid.innerHTML=emptyHtml('alert','Could not load products','Refresh the page to try again.')}}
+catch(err){if(request!==requestId)return;console.error(err);if(reset)grid.innerHTML=emptyHtml('alert','Could not load products','Refresh the page to try again.')}}
 function drawCats(cats){$('#cats').innerHTML=[{id:'',name:'All'},...cats].map(c=>`<button class="chip ${st.cat===c.id?'on':''}" data-c="${esc(c.id)}">${esc(c.name)}</button>`).join('')}
 $('#cats').addEventListener('click',e=>{const b=e.target.closest('[data-c]');if(!b)return;st.cat=b.dataset.c;$$('#cats .chip').forEach(x=>x.classList.toggle('on',x===b));sync();fetchPage(true)});
 $('#sf').addEventListener('submit',e=>{e.preventDefault();st.q=$('#q').value.trim();sync();fetchPage(true)});

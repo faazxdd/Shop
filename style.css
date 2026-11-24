@@ -657,3 +657,11 @@ main:has(.buybar) { padding-bottom: 88px; }
   .hero .container { display: flex; }
   .hero-logo { height: 92px; }
 }
+
+/* V2 admin refinement: preserves existing light/dark theme and status colors. */
+.admin-body{--radius:18px;--radius-sm:12px;--pop:0 3px 12px #0000000d;--pop-lg:0 8px 28px #00000014}
+.admin-body .card{border-color:var(--border)}
+.admin-body .admin-top{border-bottom-color:var(--border)}
+.admin-body .admin-nav{border-bottom-color:var(--border)}
+.admin-body .input:focus{outline:2px solid var(--primary);outline-offset:2px}
+.admin-body .admin-main{max-width:1440px;margin-inline:auto}
