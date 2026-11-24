@@ -29,17 +29,19 @@
 <script src="shop.js"></script>
 <script>
 renderSiteHeader('cart');
-const box=$('#cart');let lines=[];
+const box=$('#cart');let lines=[],renderVersion=0,submitting=false,draft=null;
 const lineHtml=l=>{const p=l.product,im=(p.images||[])[0],o=stockOf(p)==='out';
-return `<div class="cl" data-id="${esc(l.product_id)}">${im?`<img src="${esc(im)}" alt="${esc(p.name)}">`:`<div class="ph">${ic('box')}</div>`}<div class="info"><b>${esc(p.name)}</b><span class="small muted">${money(p.selling_price)} each</span>${o?'<div class="small" style="color:var(--bad);font-weight:600">Out of stock. Remove it to continue.</div>':''}<br><button class="rm" data-rm>Remove</button></div><div style="text-align:right"><div class="qty"><button data-q="-1" aria-label="Less">${ic('minus')}</button><span>${l.quantity}</span><button data-q="1" aria-label="More">${ic('plus')}</button></div><div class="price" style="margin-top:6px">${money(l.quantity*Number(p.selling_price))}</div></div></div>`};
+return `<div class="cl" data-id="${esc(l.product_id)}">${im?`<img src="${esc(im)}" alt="${esc(p.name)}">`:`<div class="ph">${ic('box')}</div>`}<div class="info"><b>${esc(p.name)}</b><span class="small muted">${money(p.selling_price)} each</span>${o?'<div class="small" style="color:var(--bad);font-weight:600">Out of stock. Remove it to continue.</div>':''}<br><button class="rm" data-rm>Remove</button></div><div style="text-align:right"><div class="qty"><button data-q="-1" aria-label="Less">${ic('minus')}</button><span>${l.quantity}</span><button data-q="1" aria-label="More" ${o||l.quantity>=999?'disabled':''}>${ic('plus')}</button></div><div class="price" style="margin-top:6px">${money(l.quantity*Number(p.selling_price))}</div></div></div>`};
 function saved(){try{return JSON.parse(localStorage.getItem('cust_v1'))||{}}catch{return{}}}
+function captureDraft(){const f=$('#co');if(f)draft={name:f.elements.name.value,phone:f.elements.phone.value,address:f.elements.address.value};}
 async function render(){
+const version=++renderVersion;captureDraft();
 let items=Shop.cart.get();
 if(!items.length){box.innerHTML=emptyHtml('bag','Your cart is empty','Add something you like and it will wait here.','<a class="btn dark" href="products.html">Browse products</a>');return}
-try{lines=await Shop.cartDetails()}catch(e){console.error(e);box.innerHTML=emptyHtml('alert','Could not load your cart','Refresh the page to try again.');return}
+try{const next=await Shop.cartDetails();if(version!==renderVersion)return;lines=next}catch(e){if(version!==renderVersion)return;console.error(e);box.innerHTML=emptyHtml('alert','Could not load your cart','Please try again.','<button class="btn" id="retry-cart">Retry</button>');return}
 if(!lines.length){Shop.cart.clear();box.innerHTML=emptyHtml('bag','Your cart is empty','The products in it are no longer available.','<a class="btn dark" href="products.html">Browse products</a>');return}
 const missing=items.length!==lines.length;
-const total=lines.reduce((s,l)=>s+l.quantity*Number(l.product.selling_price),0),blocked=missing||lines.some(l=>stockOf(l.product)==='out'),c=saved();
+const total=lines.reduce((s,l)=>s+l.quantity*Number(l.product.selling_price),0),blocked=missing||lines.some(l=>stockOf(l.product)==='out'),c=draft||saved();
 box.innerHTML=`<div class="cart"><div>${lines.map(lineHtml).join('')}</div>
 <form class="card" id="co" novalidate>${missing?'<p class="msg bad">Some items are no longer available. <button type="button" class="btn sm" id="remove-missing">Remove unavailable items</button></p>':''}<h2 style="font-size:16px;margin-bottom:10px">Send your order</h2>
 <div class="sum"><span class="muted">Items</span><span>${lines.reduce((n,l)=>n+l.quantity,0)}</span></div>
@@ -50,13 +52,13 @@ box.innerHTML=`<div class="cart"><div>${lines.map(lineHtml).join('')}</div>
 <label class="field"><span>Delivery address (optional)</span><input class="in" name="address" autocomplete="street-address" maxlength="300" value="${esc(c.address||'')}" placeholder="Area, street, building"></label>
 <div class="err" id="co-err" hidden></div>
 <button class="btn dark wide" type="submit" id="co-btn" ${blocked?'disabled':''}>Place order</button></form></div>`}
-box.addEventListener('click',e=>{if(e.target.closest('#remove-missing')){Shop.cart.save(Shop.cart.get().filter(i=>lines.some(l=>l.product_id===i.product_id)));render();return}const row=e.target.closest('.cl');if(!row)return;const id=row.dataset.id,cur=(Shop.cart.get().find(i=>i.product_id===id)||{}).quantity||0;
+box.addEventListener('click',e=>{if(submitting)return;if(e.target.closest('#retry-cart')){render();return}if(e.target.closest('#remove-missing')){Shop.cart.save(Shop.cart.get().filter(i=>lines.some(l=>l.product_id===i.product_id)));render();return}const row=e.target.closest('.cl');if(!row)return;const id=row.dataset.id,cur=(Shop.cart.get().find(i=>i.product_id===id)||{}).quantity||0;
 if(e.target.closest('[data-rm]')){Shop.cart.remove(id);render()}
-const q=e.target.closest('[data-q]');if(q){Shop.cart.setQty(id,cur+Number(q.dataset.q));render()}});
-box.addEventListener('submit',async e=>{e.preventDefault();const f=e.target.elements,err=$('#co-err'),name=f.name.value.trim(),phone=f.phone.value.trim(),address=f.address.value.trim();err.hidden=true;
+const q=e.target.closest('[data-q]');if(q&&!q.disabled){Shop.cart.setQty(id,cur+Number(q.dataset.q));render()}});
+box.addEventListener('submit',async e=>{e.preventDefault();if(submitting||e.target.id!=='co'||$('#co-btn').disabled)return;const f=e.target.elements,err=$('#co-err'),name=f.name.value.trim(),phone=f.phone.value.trim(),address=f.address.value.trim();err.hidden=true;
 if(name.length<2){err.textContent='Please enter your name.';err.hidden=false;return}
 if(phone.replace(/\D/g,'').length<6){err.textContent='Please enter a valid phone number.';err.hidden=false;return}
-await withBusy($('#co-btn'),async()=>{try{await Shop.placeOrder({name,phone,address});try{localStorage.setItem('cust_v1',JSON.stringify({name,phone,address}))}catch{}location.href='orders.html#placed'}catch(ex){err.textContent=errMsg(ex);err.hidden=false}})});
+submitting=true;const controls=[...box.querySelectorAll('button,input')].filter(el=>!el.disabled&&el.id!=='co-btn');controls.forEach(el=>el.disabled=true);try{await withBusy($('#co-btn'),async()=>{try{await Shop.placeOrder({name,phone,address});try{localStorage.setItem('cust_v1',JSON.stringify({name,phone,address}))}catch{}location.href='orders.html#placed'}catch(ex){err.textContent=errMsg(ex);err.hidden=false}})}finally{submitting=false;controls.forEach(el=>el.disabled=false)}});
 window.addEventListener('settings-loaded',()=>{});
 applyBusinessSettings();render();
 </script>
