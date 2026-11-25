@@ -14,7 +14,7 @@ Tabs.push({key:'customers',order:6,label:'Customers',ico:'<i class="i i-user"></
 }});
 Tabs.push({key:'audit',order:7,label:'Activity log',ico:'<i class="i i-shield"></i>',async render(el){
  const rows=throwIfError(await sb.from('audit_logs').select('*').order('created_at',{ascending:false}).limit(200));
- el.innerHTML=`<section class="card"><h2>Activity log</h2><p class="help">Latest 200 events. Field names only; private customer values are not copied into logs.</p><div class="table-wrap"><table><thead><tr><th>Time</th><th>Action</th><th>Record</th><th>Changed fields</th><th>Actor</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(fmtDate(r.created_at))}</td><td>${esc(r.action)}</td><td>${esc(r.entity)}<br><small>${esc(r.entity_id)}</small></td><td>${esc(r.changed_fields.join(', '))}</td><td>${esc(r.actor_id||'Guest / system')}</td></tr>`).join('')}</tbody></table></div></section>`;
+ el.innerHTML=`<section class="card"><h2>Activity log</h2><p class="help">Latest 200 events. Field names only; private customer values are not copied into logs.</p><div class="table-wrap audit-scroll" tabindex="0" role="region" aria-label="Activity log events"><table><thead><tr><th>Time</th><th>Action</th><th>Record</th><th>Changed fields</th><th>Actor</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(fmtDate(r.created_at))}</td><td>${esc(r.action)}</td><td>${esc(r.entity)}<br><small>${esc(r.entity_id)}</small></td><td>${esc(r.changed_fields.join(', '))}</td><td>${esc(r.actor_id||'Guest / system')}</td></tr>`).join('')}</tbody></table></div></section>`;
 }});
 
 // Wikimedia Commons is a free licensed source. Candidates stay unpublished until approved.
