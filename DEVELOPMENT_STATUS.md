@@ -1,27 +1,28 @@
 # FZ Cart V8 development status
 
-Branch: fz-cart-v8. Baseline: 4c81e8e. Production is read-only during development.
+Branch: `fz-cart-v8`. Starting V8 revision: `4c81e8e`. Production database was audited read-only and was not modified. No production deployment or merge was performed.
 
-## Audit (2026-11-24)
-- Read all 20 source/manifest files, V8 commits and main comparison. Buildless static JS; pinned Supabase CDN 2.110.1; lazy QR library 1.4.4. No test suite, dependency manifest or SQL migrations existed.
-- Supabase schema/policies/functions/triggers inspected without reading customer records. Nine RLS-enabled tables; public catalogue exposes selected columns via owner-rights view. Admin RPCs check database profile role; inventory reservation locks products in deterministic order; idempotency request hash exists.
-- Existing V8 preserves checkout form drafts and guards stale renders/double submits. These fixes are retained.
-- Found broken bulk archive (missing API method), permissive CSV numeric parsing, historical profits based on current cost, no customer login UI, no coupon/delivery pricing, no variant grouping, no audit log.
-- Security advisors: catalogue owner-rights view, callable definer RPCs, leaked-password protection disabled. Function exposure is not proof of exploit; explicit authorization and privilege tests are required.
+## Completed in this branch
 
-## Work in progress
-- Additive migration and local database regression harness.
-- Customer accounts, variant selection, promotions, checkout and admin workflows.
-- Accessibility, responsive verification and security regression tests.
+- Audited the existing static storefront/admin application, both prior V8 commits, dependency versions, nine Supabase public tables, RLS policies, SQL RPCs, triggers and Storage policies. Preserved checkout draft and stale-render fixes.
+- Kept the minimalist black-and-white responsive storefront and added server-backed price/stock filters, stronger search, original/offer prices, variant groups and attributes, keyboard-accessible product gallery/zoom, customer accounts, password recovery and signed-in order history. Existing guest tracking, favourites, recent views, sharing and dark mode remain.
+- Checkout now shows authoritative subtotal, coupon discount and delivery charges. The server rechecks prices and stock, atomically reserves inventory, captures historical cost and handles duplicate requests. Product creation and initial stock are atomic.
+- Added delivery/coupon, customer and audit panels to the admin dashboard; historical sales/profit summary; daily/weekly/monthly/custom reports; invoice discount/delivery lines; CSV validation; working bulk archive; product variant/image controls. The authorized Wikimedia finder requires review and approval before product publication.
+- Added RLS-controlled tables, customer-owned order reads, admin-only historical costs/audit, explicit RPC privileges, stock-write guards, CSP, offline-shell cache boundaries, pinned vendored browser libraries, SEO metadata, CI and documentation.
+- Prepared additive migration, schema-only test fixture, preflight/postflight queries and [deployment](docs/DEPLOYMENT.md), [security](docs/SECURITY.md), [operations](docs/OPERATIONS.md) guides. Existing accounts, products, settings, orders and stock history are preserved by the migration.
 
-## Release gates
-- No production data reset, migration execution, merge or deployment authorized in this work.
-- Local database fixture is schema-only, for isolated tests; never apply it to production.
-- Real Supabase staging and mobile device acceptance remain required before release.
+## Verification (2026-11-25)
 
-## Verified implementation checkpoint
-- Added variant grouping/attributes, original prices, coupons, delivery configuration, customer order ownership, immutable purchase-cost snapshots and append-only activity records in an additive SQL migration.
-- Legacy checkout RPC remains available. New checkout performs server pricing and reservations transactionally; product creation with initial stock is atomic.
-- Passed local PostgreSQL 17 concurrency checks: eight competing orders for one unit yield one order; eight retries with the same key yield one order; a one-use coupon is redeemed once.
-- Passed schema/RLS tests for customer isolation, admin authorization, cost privacy, cancellation release, price tampering and coupon rollback.
-- Browser QA is ongoing. Initial four viewport checkout tests passed; variant selection fixture corrected and re-run pending.
+- `npm run check`: passed JavaScript syntax, duplicate HTML ID and CSP hash checks.
+- `npm test`: 7 passed, 0 failed. Includes isolated PostgreSQL 17 concurrent last-unit checkout, same-key retries and one-use coupon redemption; PGlite schema/RLS/price/stock/ownership regression; client CSV/XSS/cart checks and service-worker cache privacy checks.
+- `npm run test:browser`: 14 passed, 0 failed on Chromium with mocked network data. Tested customer and admin flows, product variants, coupon errors, order confirmation, authorized image approval, PDF bytes, XSS rendering and layouts at 375, 390, 768 and 1440 px. The representative mocks do not certify a live Supabase environment or physical mobile devices.
+- `npm audit`: zero reported vulnerabilities for pinned npm dependencies as of this check. Vendored browser scripts need separate upstream review when updated.
+
+## Remaining release gates and limitations
+
+- Apply the migration to an isolated **real Supabase staging project** and run `supabase/postflight.sql`, advisors, real Auth/Storage/REST checks, email signup/recovery and live order tests. The local fixtures simplify managed Auth/Storage privileges. No staging project was available for this task.
+- Decide and validate a **server-enforced guest-checkout abuse control** before open public release. The existing anonymous checkout can be abused to reserve stock with many unique requests despite overselling prevention. See [security review](docs/SECURITY.md).
+- Verify real iOS Safari, Android Chrome and tablet/desktop PWA installation, native sharing, printing, QR, offline behavior and multilingual invoice needs. Browser viewport tests are representative only; downloadable PDF currently transliterates unsupported scripts.
+- Supabase Auth leaked-password protection was disabled in the read-only advisor audit. Enable it and verify rate limits/email redirect configuration in the release environment.
+- Reporting is intentionally bounded: 5,000 orders/movements, 10,000 products, latest 200 customers/audit entries, latest 100 account orders. Historical orders have no cost snapshot and show incomplete profit rather than guessed costs.
+- Branch review/CI must pass at the pushed SHA before any migration, merge or Pages deployment. No online payment gateway or paid image API was added, as requested.
