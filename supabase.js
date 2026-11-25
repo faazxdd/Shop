@@ -216,6 +216,10 @@ const Shop = {
   async placeOrder({ name, phone, address, coupon = '' }) {
     const items = Shop.cart.get();
     if (!items.length) throw new Error('Your cart is empty');
+    const session = await Auth.getSession();
+    if (!session || session.user.is_anonymous) {
+      throw Object.assign(new Error('Sign in to place your order.'), { code: 'CHECKOUT_SIGN_IN' });
+    }
     const { data, error } = await sb.rpc('checkout_v8', {
       p_customer_name: name,
       p_customer_phone: phone,
