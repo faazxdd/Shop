@@ -98,3 +98,37 @@ body{font-size:16px}.main{padding-top:32px;padding-bottom:48px}.in{font-size:16p
 button,input,select,textarea{font-family:inherit}
 .in{font-family:inherit}.btn{font-family:inherit}.chip{font-family:inherit}
 .product-title-button{font-family:inherit}.pt,.price{font-family:inherit}
+
+/* Customer account */
+.account .auth-card {
+  width: min(100%, 440px);
+  margin: clamp(12px, 4vw, 44px) auto;
+  padding: clamp(20px, 5vw, 34px);
+  border-radius: 24px;
+}
+.auth-card h1 { font-size: clamp(28px, 7vw, 36px); line-height: 1.14; margin: 0 0 22px; letter-spacing: -.045em; }
+.auth-card .auth-google {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #747775;
+  border-radius: 24px;
+  background: #fff;
+  color: #1f1f1f;
+  gap: 12px;
+  font: 500 14px/1.25 Roboto, Arial, sans-serif;
+}
+.auth-google svg { flex: none; }
+.auth-divider { display: flex; align-items: center; gap: 13px; margin: 18px 0; font-size: 13px; }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; border-top: 1px solid var(--s2); }
+.auth-card .field { margin-bottom: 13px; }
+.auth-card .in { min-height: 46px; font-size: 16px; }
+.auth-password { position: relative; display: block; }
+.auth-password .in { padding-inline-end: 66px; }
+.auth-password .auth-link { position: absolute; inset-inline-end: 10px; top: 50%; transform: translateY(-50%); }
+.auth-link { border: 0; background: transparent; color: var(--ink); font: inherit; font-weight: 650; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 8px 4px; }
+.auth-forgot { display: block; margin: -8px 0 10px auto; }
+.auth-card .auth-submit { width: 100%; min-height: 46px; border-radius: 24px; font-size: 15px; }
+.auth-message:empty { display: none; }
+.auth-message { margin: 0 0 12px; font-size: 14px; }
+.auth-switch { text-align: center; margin-top: 13px; font-size: 14px; }

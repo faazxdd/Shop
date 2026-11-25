@@ -58,3 +58,26 @@ test('catalogue treats malicious product text as text',async({page})=>{
  await mock(page);await page.route('**/rest/v1/public_products*',route=>route.fulfill({contentType:'application/json',body:JSON.stringify([{...product,name:'<img src=x onerror=alert(1)>'}])}));
  let dialogs=0;page.on('dialog',d=>{dialogs++;d.dismiss()});await page.goto('/products.html');await expect(page.locator('.pt')).toContainText('<img src=x onerror=alert(1)>');expect(await page.locator('.pt img').count()).toBe(0);expect(dialogs).toBe(0);
 });
+
+test('mobile account separates Google, email signup and password recovery', async ({page}) => {
+ await page.setViewportSize({width:390,height:844});
+ await mock(page);
+ await page.route('**/auth/v1/settings',route=>route.fulfill({json:{external:{google:true}}}));
+ await page.goto('/account.html');
+ const google=page.getByRole('button',{name:'Continue with Google'});
+ await expect(google).toBeVisible();
+ await expect(google.locator('svg')).toHaveCount(1);
+ await expect(page.getByLabel('Full name')).toHaveCount(0);
+ await page.getByLabel('Email',{exact:true}).fill('customer@example.com');
+ await page.getByRole('button',{name:'Show password'}).click();
+ await expect(page.getByLabel('Password',{exact:true})).toHaveAttribute('type','text');
+ await page.getByRole('button',{name:'Create account',exact:true}).click();
+ await expect(page.getByLabel('Full name')).toBeVisible();
+ await expect(page.getByLabel('Email',{exact:true})).toHaveValue('customer@example.com');
+ await page.getByRole('button',{name:'Back to sign in'}).click();
+ await page.getByRole('button',{name:'Forgot password?'}).click();
+ await expect(page.getByRole('button',{name:'Send reset link'})).toBeVisible();
+ await expect(page.getByLabel('Password',{exact:true})).toHaveCount(0);
+ await expect(page.getByLabel('Email',{exact:true})).toHaveValue('customer@example.com');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
