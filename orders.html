@@ -2,23 +2,22 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-sSITTlKFxWWQiQolclujo5+P00xwwVYQkf6yUUhKwYY='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>My orders</title>
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
 <script>try{document.documentElement.dataset.shopTheme=localStorage.getItem("shop-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}</script>
 <link rel="stylesheet" href="shop.css">
 </head>
 <body>
+<a href="#main-content" class="skip-link">Skip to content</a>
 <div class="shell">
 <div id="util"></div>
 <header id="site-header"></header>
-<main class="main" style="max-width:760px;width:100%;margin:0 auto;gap:18px">
+<main id="main-content" class="main" style="max-width:760px;width:100%;margin:0 auto;gap:18px">
 <div class="page-h"><div class="sub">Tracking</div><h1>My orders</h1></div>
 <div id="placed"></div>
 <div id="list"><div class="skel" style="min-height:180px"></div></div>
@@ -33,7 +32,7 @@
 </main>
 <footer id="site-footer"></footer>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
+<script src="vendor/supabase-2.110.1.js"></script>
 <script src="supabase.js"></script>
 <script src="shop.js"></script>
 <script>
@@ -64,7 +63,7 @@ Shop.myOrders.add(n,p);f.n.value='';f.p.value='';toast('Order added to your list
 function showPlaced(){let o=null;try{o=JSON.parse(sessionStorage.getItem('last_order')||'null')}catch{o=null}if(!justPlaced||!o||!o.order_number)return;
 $('#placed').innerHTML=`<div class="card confirm"><div class="cicon">${ic('check')}</div><h2 style="font-size:20px">Order sent</h2><p class="muted">Thank you! Our team will contact you shortly to confirm your order.</p><div class="onum">#${esc(o.order_number)}<button type="button" data-copy="${esc(o.order_number)}" aria-label="Copy order number">${ic('copy')}</button></div><p class="help" style="margin:0">Keep this number. Progress shows below and updates by itself.</p></div>`}
 (async()=>{showPlaced();const s=await applyBusinessSettings();if(s&&s.contact_phone)phone=s.contact_phone;await load();
-setInterval(()=>{if(!document.hidden)load()},20000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()})})();
+setInterval(()=>{if(!document.hidden)load()},Math.max(30000,Shop.myOrders.get().length*12000));document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()})})();
 </script>
 </body>
 </html>

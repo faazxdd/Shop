@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /Shop/admin.html
+Disallow: /Shop/account.html
+Disallow: /Shop/cart.html
+Disallow: /Shop/orders.html
+Sitemap: https://faazxdd.github.io/Shop/sitemap.xml

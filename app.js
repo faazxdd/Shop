@@ -55,14 +55,15 @@ async function withBusy(btn, fn) {
 }
 
 /* ---------- Sheet / modal ---------- */
-let _sheetEl = null;
+let _sheetEl = null, _sheetFocus = null, _sheetDismiss = null;
 
 function openSheet(title, bodyHtml) {
   closeSheet();
+  _sheetFocus = document.activeElement;
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
   overlay.innerHTML = `
-    <div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+    <div class="sheet" role="dialog" aria-modal="true" tabindex="-1" aria-label="${esc(title)}">
       <div class="sheet-head">
         <h2 style="margin:0">${esc(title)}</h2>
         <button class="icon-btn" data-close aria-label="Close"><i class="i i-close"></i></button>
@@ -75,11 +76,12 @@ function openSheet(title, bodyHtml) {
   document.body.appendChild(overlay);
   document.body.style.overflow = 'hidden';
   _sheetEl = overlay;
+  $('.sheet',overlay).focus();
   return $('.sheet-body', overlay);
 }
 
 function closeSheet() {
-  if (_sheetEl) { _sheetEl.remove(); _sheetEl = null; document.body.style.overflow = ''; }
+  if (_sheetEl) { _sheetEl.remove(); _sheetEl = null; document.body.style.overflow = ''; _sheetFocus?.focus(); const dismiss=_sheetDismiss;_sheetDismiss=null;dismiss?.(); }
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
 
@@ -93,8 +95,9 @@ function confirmDialog(message, confirmLabel = 'Confirm', danger = false) {
         <button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" data-yes>${esc(confirmLabel)}</button>
       </div>`);
     const overlay = _sheetEl;
+    _sheetDismiss=()=>resolve(false);
     let done = false;
-    const finish = v => { if (!done) { done = true; closeSheet(); resolve(v); } };
+    const finish = v => { if (!done) { done = true; _sheetDismiss=null; closeSheet(); resolve(v); } };
     $('[data-yes]', body).onclick = () => finish(true);
     $('[data-no]', body).onclick = () => finish(false);
     overlay.addEventListener('click', e => { if (e.target === overlay) finish(false); });
@@ -308,4 +311,12 @@ registerServiceWorker();
 window.addEventListener('unhandledrejection', e => {
   console.error(e.reason);
   toast(errMsg(e.reason), 'error');
+});
+
+document.addEventListener('keydown',e=>{
+ if(e.key!=='Tab'||!_sheetEl)return;
+ const focusable=$$('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled)',_sheetEl);
+ const first=focusable[0],last=focusable.at(-1);
+ if(e.shiftKey&&(document.activeElement===first||document.activeElement.classList.contains('sheet'))){e.preventDefault();last?.focus()}
+ else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}
 });
