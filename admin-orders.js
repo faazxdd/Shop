@@ -88,9 +88,7 @@
     area.innerHTML = innerHtml;
     document.body.classList.add('printing-doc');
     window.addEventListener('afterprint', () => document.body.classList.remove('printing-doc'), { once: true });
-    setTimeout(() => {
-      try { window.print(); } catch { document.body.classList.remove('printing-doc'); toast('Printing is not available on this device', 'error'); }
-    }, 150);
+    try { window.print(); } catch { document.body.classList.remove('printing-doc'); toast('Printing is not available on this device', 'error'); }
   }
   function docShell(title, inner) { return inner; }
   function slipHtml(o, shop) {
@@ -342,6 +340,29 @@
     return doc.finish('Bill - Order #' + orderNo);
   }
 
+  function slipPdf(order, shop) {
+    const doc = pdfDoc();
+    let y = 50;
+    doc.addPage();
+    function line(value, size = 12, bold = false) {
+      for (const row of pdfWrap(pdfText(value), PDF_W - 80, size, bold)) {
+        if (y > PDF_H - 48) { doc.addPage(); y = 50; }
+        doc.text(row, 40, y, {size, bold});
+        y += size + 7;
+      }
+    }
+    line(shop.business_name || 'Shop', 18, true);
+    line('Delivery slip - Order #' + order.order_number, 15, true);
+    line(pdfDate(order.created_at));
+    line(order.customer_name);
+    line(order.customer_phone);
+    for (const part of (order.delivery_address || 'No delivery address given').split(/\r?\n/)) line(part);
+    y += 12;
+    line('Items and quantities', 13, true);
+    for (const item of order.order_items || []) line(item.quantity + ' x ' + item.product_name);
+    return new Blob([doc.finish('Delivery slip - Order #' + order.order_number)], {type:'application/pdf'});
+  }
+
   function billPdfFile(o, shop) {
     const bytes = buildBillPdf(o, shop);
     const no = String(o.order_number == null ? '' : o.order_number).replace(/[^A-Za-z0-9_-]+/g, '');
@@ -388,6 +409,13 @@
     const body = openSheet(`Order #${o.order_number}`, `
       <div class="row between"><span>${statusBadge(o.status)}</span><span class="muted small">${esc(fmtDate(o.created_at))}</span></div>
 
+      <div class="row wrap mt">
+        <button class="btn btn-sm" type="button" data-print="slip">Print delivery slip</button>
+        <button class="btn btn-sm" type="button" data-print="bill">Print bill</button>
+        <button class="btn btn-sm" type="button" data-preview="bill">View bill PDF</button>
+        <button class="btn btn-sm" type="button" data-preview="slip">View delivery slip PDF</button>
+        <button class="btn btn-sm" type="button" id="share-bill">Share bill (PDF)</button>
+      </div>
       <h3 class="mt">Customer</h3>
       <div><strong>${esc(o.customer_name)}</strong></div>
       <div class="muted">${esc(o.customer_phone)}</div>
@@ -403,11 +431,7 @@
         <tbody>${items.map(i => `<tr><td>${esc(i.product_name)}</td><td class="num">${i.quantity}</td><td class="num">${money(i.unit_price)}</td><td class="num">${money(i.line_total)}</td></tr>`).join('')}</tbody>
       </table></div>
       <div class="summary-row"><span>Subtotal</span><span>${money(o.subtotal??items.reduce((n,i)=>n+Number(i.line_total),0))}</span></div><div class="summary-row"><span>Discount</span><span>−${money(o.discount_total||0)}</span></div><div class="summary-row"><span>Delivery</span><span>${money(o.delivery_charge||0)}</span></div><div class="summary-row summary-total"><span>Total</span><span>${money(o.total)}</span></div>
-      <div class="row wrap mt">
-        <button class="btn btn-sm" type="button" data-print="slip">Print delivery slip</button>
-        <button class="btn btn-sm" type="button" data-print="bill">Print bill</button>
-        <button class="btn btn-sm" type="button" id="share-bill">Share bill (PDF)</button>
-      </div>
+
 
       ${canStep(o) ? `<h3 class="mt">Delivery progress</h3>
         <div class="row wrap" id="steps">${STEPS.map(([v, l]) => `<button class="btn btn-sm ${(o.fulfillment_step || '') === v ? 'btn-primary' : ''}" data-step="${v}">${l}</button>`).join('')}</div>
@@ -420,14 +444,29 @@
         : '<p class="help mt">This order is closed.</p>'}
     `);
 
-    $$('[data-print]', body).forEach(b => b.onclick = async () => {
-      const shop = await getShop();
-      printDoc(b.dataset.print === 'bill' ? billHtml(o, shop) : slipHtml(o, shop));
+    const documentButtons = $$('[data-print], [data-preview]', body);
+    for (const button of documentButtons) button.disabled = true;
+    getShop().then(shop => {
+      for (const button of documentButtons) {
+        button.disabled = false;
+        button.onclick = () => {
+          if (button.dataset.print) {
+            printDoc(button.dataset.print === 'bill' ? billHtml(o, shop) : slipHtml(o, shop));
+            return;
+          }
+          const file = button.dataset.preview === 'bill' ? billPdfFile(o, shop) : slipPdf(o, shop);
+          const url = URL.createObjectURL(file);
+          const link = document.createElement('a');
+          link.href = url;
+          link.target = '_blank';
+          link.rel = 'noopener';
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 60000);
+        };
+      }
     });
-
-    // Share bill (PDF). Separate from Print bill. Shop settings are warmed up front so the
-    // share sheet can open straight after the tap (iOS only allows sharing right after a tap).
-    getShop();
     const shareBtn = $('#share-bill', body);
     if (shareBtn) shareBtn.onclick = () => withBusy(shareBtn, async () => {
       try {
@@ -536,13 +575,46 @@
     badge.hidden = !count;
   }
 
+  let audio;
+  function orderChime() {
+    if (!audio || audio.state !== 'running') return;
+    const now = audio.currentTime;
+    const tone = audio.createOscillator();
+    const volume = audio.createGain();
+    tone.frequency.setValueAtTime(660, now);
+    tone.frequency.setValueAtTime(880, now + 0.14);
+    volume.gain.setValueAtTime(0.14, now);
+    volume.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+    tone.connect(volume);
+    volume.connect(audio.destination);
+    tone.start(now);
+    tone.stop(now + 0.56);
+  }
+
   function startRealtime() {
     refreshBadge();
+    const sound = $('#order-sound');
+    sound.onclick = async () => {
+      sound.disabled = true;
+      try {
+        if (audio?.state === 'running') await audio.suspend();
+        else {
+          audio ||= new (window.AudioContext || window.webkitAudioContext)();
+          await audio.resume();
+          orderChime();
+        }
+      } catch { toast('Sound could not be enabled on this device', 'error'); }
+      const enabled = audio?.state === 'running';
+      sound.setAttribute('aria-pressed', String(enabled));
+      sound.textContent = enabled ? 'Sound on' : 'Sound off';
+      sound.disabled = false;
+    };
     sb.channel('admin-orders')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, payload => {
         const o = payload.new;
         toast(`New order #${o.order_number} received`, 'success');   // total is filled in a moment later
         try { if (navigator.vibrate) navigator.vibrate(120); } catch { /* ignore */ }
+        orderChime();
         refreshBadge();
         if (currentTab === 'orders' && reloadList) reloadList();
       })

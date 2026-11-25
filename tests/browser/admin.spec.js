@@ -39,6 +39,21 @@ for(const width of [390,768,1440])test(`admin commerce panels and PDF at ${width
  }
  await page.locator('#nav').getByRole('button',{name:'Orders',exact:true}).click();
  await page.locator('#o-list .list-card').click();await expect(page.getByRole('dialog')).toBeVisible();
+ await page.evaluate(()=>{
+  window.print=()=>{window.printedDocument=document.querySelector('#print-area').textContent};
+  const createURL=URL.createObjectURL.bind(URL);
+  URL.createObjectURL=file=>{window.previewText=file.text();return createURL(file)};
+  document.addEventListener('click',event=>{
+   const link=event.target.closest('a[href^="blob:"][target="_blank"]');
+   if(link) event.preventDefault();
+  });
+ });
+ for(const [kind,label] of [['slip','Delivery slip'],['bill','Bill']]){
+  await page.locator('[data-print="'+kind+'"]').click();
+  expect(await page.evaluate(()=>window.printedDocument)).toContain(label);
+  await page.locator('[data-preview="'+kind+'"]').click();
+  expect(await page.evaluate(()=>window.previewText)).toContain('%PDF-1.4');
+ }
  const download=page.waitForEvent('download');await page.locator('#share-bill').click();const file=await download;const bytes=await fs.readFile(await file.path());expect(bytes.subarray(0,8).toString()).toBe('%PDF-1.4');expect(bytes.toString()).toContain('Delivery');expect(bytes.toString()).toContain('110.00');
  await page.screenshot({path:`test-results/admin-${width}.png`,fullPage:true});expect(errors).toEqual([]);
 });
