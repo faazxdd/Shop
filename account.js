@@ -2,6 +2,17 @@ renderSiteHeader('account');
 applyBusinessSettings();
 let recovery=location.hash.includes('type=recovery');
 const accountUrl=new URL('account.html',location.href).href;
+const checkoutRequested=new URLSearchParams(location.search).get('checkout')==='1';
+const checkoutKey='fz_checkout_return';
+function returnToCheckout() {
+ let pending=checkoutRequested;
+ try {
+  pending=pending||sessionStorage.getItem(checkoutKey)==='1';
+  sessionStorage.removeItem(checkoutKey);
+ } catch {}
+ if(pending)location.replace('cart.html');
+ return pending;
+}
 async function showGoogleSignIn(button) {
  try {
   const response=await fetch(SUPABASE_URL+'/auth/v1/settings',{headers:{apikey:SUPABASE_ANON_KEY}});
@@ -14,6 +25,8 @@ sb.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'){recovery=false;$('#ac
 async function renderAccount() {
  const box=$('#account'); box.innerHTML='<p>Loading your account…</p>';
  try {
+ const session=await Auth.getSession();
+ if(session && !session.user.is_anonymous && !recovery && returnToCheckout())return;
  const profile=await Customer.profile();
  if(profile&&recovery){
  box.innerHTML='<form id="reset-password" class="card auth-card"><h1>Choose a new password</h1><label class="field">New password<input class="in" name="password" type="password" minlength="8" autocomplete="new-password" required></label><button class="btn dark">Save password</button></form>';
@@ -41,7 +54,7 @@ function renderSignIn(box, mode='login', email='') {
  const register=mode==='register';
  const reset=mode==='reset';
  const login=mode==='login';
- const title=register?'Create account':reset?'Reset password':'Sign in';
+ const title=register?'Create account':reset?'Reset password':checkoutRequested?'Sign in to check out':'Sign in';
  box.innerHTML=`<section class="card auth-card" aria-labelledby="auth-title">
   <h1 id="auth-title" tabindex="-1">${title}</h1>
   ${reset?'':`<div class="auth-provider" hidden>
@@ -80,6 +93,7 @@ function renderSignIn(box, mode='login', email='') {
   google.onclick=()=>withBusy(google,async()=>{
    message.textContent='';
    try {
+    if(checkoutRequested){try{sessionStorage.setItem(checkoutKey,'1')}catch{}}
     throwIfError(await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:accountUrl}}));
    } catch(error) { message.textContent=errMsg(error); }
   });
@@ -98,6 +112,7 @@ function renderSignIn(box, mode='login', email='') {
      message.textContent='If an account exists, a password reset link will arrive by email.';
     }else if(register){
      await Customer.signUp(address,fields.password.value,fields.full_name.value.trim());
+     if(checkoutRequested && await Auth.getSession()){await renderAccount();return}
      message.textContent='Check your email to confirm your account, then sign in.';
     }else{
      await Customer.signIn(address,fields.password.value);

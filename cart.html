@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-DyI5r2+6HUqmD9Pf5HLqYBfVLHMWJkS5GnjTc8izT7w='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-2uCvUw5ROs0ABNOHB0234GQWTF7qQtkFS2J+LQslcI4='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Your cart</title>
 <meta name="robots" content="noindex">
@@ -25,7 +25,7 @@
 <footer id="site-footer"></footer>
 </div>
 <script src="vendor/supabase-2.110.1.js"></script>
-<script src="supabase.js"></script>
+<script src="supabase.js?v=checkout-login"></script>
 <script src="shop.js?v=brand2"></script>
 <script>
 renderSiteHeader('cart');
@@ -41,11 +41,23 @@ if(!items.length){box.innerHTML=emptyHtml('bag','Your cart is empty','Add someth
 try{const next=await Shop.cartDetails();if(version!==renderVersion)return;lines=next}catch(e){if(version!==renderVersion)return;console.error(e);box.innerHTML=emptyHtml('alert','Could not load your cart','Please try again.','<button class="btn" id="retry-cart">Retry</button>');return}
 if(!lines.length){Shop.cart.clear();box.innerHTML=emptyHtml('bag','Your cart is empty','The products in it are no longer available.','<a class="btn dark" href="products.html">Browse products</a>');return}
 let pricingError='';try{quote=await Shop.quote(coupon)}catch(e){pricingError=errMsg(e);quote=null}if(version!==renderVersion)return;
+let session;
+try { session=await Auth.getSession(); }
+catch(error) {
+ if(version!==renderVersion)return;
+ box.innerHTML=emptyHtml('alert','Could not check your sign-in','Please try again.','<button class="btn" id="retry-cart">Retry</button>');return;
+}
+if(version!==renderVersion)return;
 captureDraft();
 const missing=items.length!==lines.length;
 const total=lines.reduce((s,l)=>s+l.quantity*Number(l.product.selling_price),0),blocked=!!pricingError||missing||lines.some(l=>stockOf(l.product)==='out'),c=draft||saved();
 refreshing=false;
-box.innerHTML=`<div class="cart"><div>${lines.map(lineHtml).join('')}</div>
+const cartItems=lines.map(lineHtml).join('');
+if(!session || session.user.is_anonymous){
+ box.innerHTML=`<div class="cart"><div>${cartItems}</div><section class="card"><h2 class="checkout-title">Sign in to check out</h2><p class="help">Your items will stay in your cart while you sign in.</p><a class="btn dark" href="account.html?checkout=1">Sign in</a></section></div>`;
+ return;
+}
+box.innerHTML=`<div class="cart"><div>${cartItems}</div>
 <form class="card" id="co" novalidate>${missing?'<p class="msg bad">Some items are no longer available. <button type="button" class="btn sm" id="remove-missing">Remove unavailable items</button></p>':''}<h2 class="checkout-title">Order summary</h2>
 <div class="sum"><span class="muted">Items</span><span>${lines.reduce((n,l)=>n+l.quantity,0)}</span></div>
 <label class="field"><span>Coupon code</span><div class="coupon-row"><input class="in" id="coupon" maxlength="32" value="${esc(coupon)}"><button class="btn" id="apply-coupon" type="button">Apply</button></div></label>
@@ -62,7 +74,9 @@ const q=e.target.closest('[data-q]');if(q&&!q.disabled){Shop.cart.setQty(id,cur+
 box.addEventListener('submit',async e=>{e.preventDefault();if(submitting||refreshing||e.target.id!=='co'||$('#co-btn').disabled)return;const f=e.target.elements,err=$('#co-err'),name=f.name.value.trim(),phone=f.phone.value.trim(),address=f.address.value.trim();err.hidden=true;
 if(name.length<2){err.textContent='Please enter your name.';err.hidden=false;return}
 if(phone.replace(/\D/g,'').length<6){err.textContent='Please enter a valid phone number.';err.hidden=false;return}
-submitting=true;const controls=[...box.querySelectorAll('button,input')].filter(el=>!el.disabled&&el.id!=='co-btn');controls.forEach(el=>el.disabled=true);try{await withBusy($('#co-btn'),async()=>{try{await Shop.placeOrder({name,phone,address,coupon});try{localStorage.setItem('cust_v1',JSON.stringify({name,phone,address}))}catch{}location.href='orders.html#placed'}catch(ex){err.textContent=errMsg(ex);err.hidden=false}})}finally{submitting=false;controls.forEach(el=>el.disabled=false)}});
+submitting=true;const controls=[...box.querySelectorAll('button,input')].filter(el=>!el.disabled&&el.id!=='co-btn');controls.forEach(el=>el.disabled=true);try{await withBusy($('#co-btn'),async()=>{try{await Shop.placeOrder({name,phone,address,coupon});try{localStorage.setItem('cust_v1',JSON.stringify({name,phone,address}))}catch{}location.href='orders.html#placed'}catch(ex){if(ex.code==='CHECKOUT_SIGN_IN'){await render();return}err.textContent=errMsg(ex);err.hidden=false}})}finally{submitting=false;controls.forEach(el=>el.disabled=false)}});
+window.addEventListener('pageshow',e=>{if(e.persisted&&!submitting)render()});
+sb.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'&&!submitting)setTimeout(render,0)});
 window.addEventListener('storage',e=>{if(e.key===Shop.cart.KEY&&!submitting)render()});
 applyBusinessSettings();render();
 </script>
