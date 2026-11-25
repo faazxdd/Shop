@@ -15,7 +15,7 @@ Branch: `fz-cart-v8`. Starting V8 revision: `4c81e8e`. Production database was a
 
 - `npm run check`: passed JavaScript syntax, duplicate HTML ID and CSP hash checks.
 - `npm test`: 7 passed, 0 failed. Includes isolated PostgreSQL 17 concurrent last-unit checkout, same-key retries and one-use coupon redemption; PGlite schema/RLS/price/stock/ownership regression; client CSV/XSS/cart checks and service-worker cache privacy checks.
-- `npm run test:browser`: 14 passed, 0 failed on Chromium with mocked network data. Tested customer and admin flows, product variants, coupon errors, order confirmation, authorized image approval, PDF bytes, XSS rendering and layouts at 375, 390, 768 and 1440 px. The representative mocks do not certify a live Supabase environment or physical mobile devices.
+- `npm run test:browser`: 13 passed, 0 failed on Chromium with mocked network data. Tested customer and admin flows, product variants, coupon errors, order confirmation, authorized image approval, PDF bytes, XSS rendering and layouts at 375, 390, 768 and 1440 px. The representative mocks do not certify a live Supabase environment or physical mobile devices.
 - `npm audit`: zero reported vulnerabilities for pinned npm dependencies as of this check. Vendored browser scripts need separate upstream review when updated.
 
 ## Remaining release gates and limitations

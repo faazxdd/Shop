@@ -495,4 +495,3 @@ grant select on all tables in schema public to authenticated;
 grant select on public.public_products,public.categories,public.business_settings to anon;
 grant insert,update,delete on public.products,public.categories,public.profiles to authenticated;
 grant update on public.business_settings to authenticated;
-
