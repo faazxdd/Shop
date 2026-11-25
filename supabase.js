@@ -469,11 +469,53 @@ function parseCSV(text) {
   return body.map(r => Object.fromEntries(head.map((h, i) => [h.trim().toLowerCase(), (r[i] ?? '').trim()])));
 }
 
+const deliveryFields = [
+  ['address', 'Street, building and flat', 'street-address', 145, 'text'],
+  ['area', 'Area / neighbourhood', 'address-level3', 55, 'text'],
+  ['emirate', 'Emirate / city', 'address-level1', 35, 'text'],
+  ['maps', 'Google Maps link', 'off', 300, 'url'],
+  ['instructions', 'Delivery instructions', 'off', 100, 'text']
+];
+
+function deliveryInputs(details = {}) {
+  return deliveryFields.map(([key, label, autocomplete, max, type]) =>
+    `<label class="field"><span>${label} (optional)</span><input class="in" name="${key}" type="${type}" autocomplete="${autocomplete}" maxlength="${max}" value="${esc(details?.[key] || '')}"${key === 'maps' ? ' placeholder="Paste a link from Google Maps → Share"' : ''}></label>`
+  ).join('');
+}
+
+function readDelivery(fields) {
+  return Object.fromEntries(deliveryFields.map(([key]) => [key, fields[key].value.trim()]));
+}
+
+function deliveryAddress(details) {
+  const { address, area, emirate, maps, instructions } = details;
+  if (maps) {
+    let url;
+    try { url = new URL(maps); } catch {}
+    const isGoogleMaps = url && (
+      (['www.google.com', 'google.com'].includes(url.hostname) && /^\/maps(?:\/|$)/.test(url.pathname)) ||
+      url.hostname === 'maps.google.com' || url.hostname === 'maps.app.goo.gl' ||
+      (url.hostname === 'goo.gl' && url.pathname.startsWith('/maps/'))
+    );
+    if (!isGoogleMaps || url.protocol !== 'https:' || url.username || url.password) {
+      throw new Error('Paste an HTTPS share link from Google Maps.');
+    }
+  }
+  const parts = [address, area, emirate, instructions && 'Instructions: ' + instructions, maps && 'Google Maps: ' + maps];
+  const result = parts.filter(Boolean).join(' | ');
+  if (Array.from(result).length > 500) throw new Error('Shorten the delivery details or use the short link from Google Maps.');
+  return result;
+}
+
 // Customer calls use the caller's session and RLS; never grant roles from user metadata.
 const Customer = {
   async signIn(email,password) { return throwIfError(await sb.auth.signInWithPassword({email,password})); },
   async signUp(email,password,name) { return throwIfError(await sb.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:new URL('account.html',location.href).href}})); },
   async profile() { const {data:{user}} = await sb.auth.getUser(); return user ? throwIfError(await sb.from('profiles').select('id,full_name').eq('id',user.id).single()) : null; },
+  async saveDelivery(delivery) {
+    deliveryAddress(delivery);
+    throwIfError(await sb.auth.updateUser({ data: { delivery } }));
+  },
   async saveName(id,full_name) { throwIfError(await sb.from('profiles').update({full_name}).eq('id',id)); },
   async orders(id) { return throwIfError(await sb.from('orders').select('id,order_number,status,total,created_at,fulfillment_step,order_items(product_name,quantity,unit_price)').eq('customer_id',id).order('created_at',{ascending:false}).limit(100)); }
 };
