@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-LV2Y6A24iBoUEDQGDfF7J0cmK2+65dXYm3LmjU+sYcA='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-xY991PfK8b9jd8I8Y9TXLQKu/z2I8YM6le1wQ6pR7XA='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Your cart</title>
 <meta name="robots" content="noindex">
@@ -69,7 +69,7 @@ box.innerHTML=`<div class="cart"><div>${cartItems}</div>
 <h2 class="checkout-title">Delivery details</h2>
 ${deliveryInputs(c)}
 <div class="err" id="co-err" hidden></div>
-<button class="btn dark wide" type="submit" id="co-btn" ${blocked?'disabled':''}>Place order</button></form></div>`}
+<button class="btn dark wide" type="submit" id="co-btn" ${blocked?'disabled':''}><span class="order-label">Place order</span><span class="delivery-scene" aria-hidden="true"><i class="parcel"></i><i class="delivery-van"><b></b></i></span></button></form></div>`}
 box.addEventListener('click',e=>{if(submitting)return;if(e.target.closest('#apply-coupon')){coupon=$('#coupon').value.trim().toUpperCase();render();return}if(e.target.closest('#retry-cart')){render();return}if(e.target.closest('#remove-missing')){Shop.cart.save(Shop.cart.get().filter(i=>lines.some(l=>l.product_id===i.product_id)));render();return}const row=e.target.closest('.cl');if(!row)return;const id=row.dataset.id,cur=(Shop.cart.get().find(i=>i.product_id===id)||{}).quantity||0;
 if(e.target.closest('[data-rm]')){Shop.cart.remove(id);render()}
 const q=e.target.closest('[data-q]');if(q&&!q.disabled){Shop.cart.setQty(id,cur+Number(q.dataset.q));render()}});
@@ -79,7 +79,28 @@ if(phone.replace(/\D/g,'').length<6){err.textContent='Please enter a valid phone
 let address;
 try { address=deliveryAddress(readDelivery(f)); }
 catch(error) { err.textContent=error.message;err.hidden=false;return; }
-submitting=true;const controls=[...box.querySelectorAll('button,input')].filter(el=>!el.disabled&&el.id!=='co-btn');controls.forEach(el=>el.disabled=true);try{await withBusy($('#co-btn'),async()=>{try{await Shop.placeOrder({name,phone,address,coupon});location.href='orders.html#placed'}catch(ex){if(ex.code==='CHECKOUT_SIGN_IN'){await render();return}err.textContent=errMsg(ex);err.hidden=false}})}finally{submitting=false;controls.forEach(el=>el.disabled=false)}});
+submitting=true;const controls=[...box.querySelectorAll('button,input')].filter(el=>!el.disabled&&el.id!=='co-btn');controls.forEach(el=>el.disabled=true);
+const button=$('#co-btn'),label=button.querySelector('.order-label');
+const motion=!matchMedia('(prefers-reduced-motion: reduce)').matches;
+const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+button.disabled=true;
+button.classList.add('loading-parcel');
+label.textContent='Placing order…';
+try {
+  await Promise.all([Shop.placeOrder({name,phone,address,coupon}),pause(motion?500:0)]);
+  button.classList.add('order-accepted');
+  label.textContent='Order placed';
+  if(motion) await pause(370);
+  location.href='orders.html#placed';
+} catch(ex) {
+  if(ex.code==='CHECKOUT_SIGN_IN'){await render();return}
+  err.textContent=errMsg(ex);err.hidden=false;
+} finally {
+  submitting=false;button.disabled=false;
+  button.classList.remove('loading-parcel','order-accepted');
+  label.textContent='Place order';controls.forEach(el=>el.disabled=false);
+}
+});
 window.addEventListener('pageshow',e=>{if(e.persisted&&!submitting)render()});
 sb.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'&&!submitting)setTimeout(()=>{box.replaceChildren();draft=null;render()},0)});
 window.addEventListener('storage',e=>{if(e.key===Shop.cart.KEY&&!submitting)render()});

@@ -13,3 +13,9 @@
 .admin-body .audit-scroll { max-width: 100%; overflow-x: auto; }
 .admin-body .audit-scroll :is(th, td) { white-space: nowrap; overflow-wrap: normal; vertical-align: top; }
 .admin-body .audit-scroll td:nth-child(4) { white-space: normal; min-width: 12ch; max-width: 36ch; }
+
+.order-sound { display:inline-flex; align-items:center; gap:.45rem; min-height:44px; padding:0 4px; background:transparent; border:0; color:inherit; font:inherit; cursor:pointer }
+.order-sound span { position:relative; width:46px; height:25px; border-radius:20px; background:#a5a6ac; transition:background .18s }
+.order-sound span::after { content:""; position:absolute; inset:3px auto 3px 3px; width:24px; background:white; border-radius:20px; box-shadow:0 1px 3px #0003; transition:transform .18s }
+.order-sound[aria-checked=true] span { background:#30c85a }
+.order-sound[aria-checked=true] span::after { transform:translateX(16px) }

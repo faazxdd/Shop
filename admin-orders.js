@@ -605,8 +605,7 @@
         }
       } catch { toast('Sound could not be enabled on this device', 'error'); }
       const enabled = audio?.state === 'running';
-      sound.setAttribute('aria-pressed', String(enabled));
-      sound.textContent = enabled ? 'Sound on' : 'Sound off';
+      sound.setAttribute('aria-checked', String(enabled));
       sound.disabled = false;
     };
     sb.channel('admin-orders')
