@@ -4,15 +4,15 @@
    - Network-first, so a new deployment shows up right away when online.
    - NEVER touches Supabase / CDN requests (cross-origin) or admin pages,
      so no private data is ever cached.
-   - Push handler is ready; real push delivery needs FCM (see README).
+   - Push events are handled; push subscription/delivery is not configured.
    Bump CACHE_VERSION on each deployment to clear old files.
    ===================================================================== */
 
-const CACHE_VERSION = 'v12-clean-commerce';
+const CACHE_VERSION = 'v8-commerce-20261125';
 const CACHE_NAME = 'shop-static-' + CACHE_VERSION;
 const SHELL = [
-  './', 'index.html', 'products.html', 'cart.html', 'orders.html',
-  'style.css', 'app.js', 'shop.css', 'shop.js', 'supabase.js', 'manifest.json',
+  './', 'index.html', 'products.html', 'cart.html', 'orders.html', 'account.html', 'account.js',
+  'shop.css', 'shop.js', 'supabase.js', 'vendor/supabase-2.110.1.js', 'manifest.json',
   'icons/icon-192.png', 'icons/icon-512.png'
 ];
 
@@ -35,15 +35,17 @@ self.addEventListener('fetch', event => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;           // Supabase, CDNs: leave alone
-  if (/admin/i.test(url.pathname)) return;                   // admin files: never cached
+  if (/admin/i.test(url.pathname)) return;
+  if (!SHELL.some(path => new URL(path,self.registration.scope).pathname === url.pathname)) return;                   // admin files: never cached
 
+  const cacheKey = url.origin + url.pathname;
   event.respondWith(
     fetch(req)
       .then(res => {
-        if (res.ok) { const copy = res.clone(); caches.open(CACHE_NAME).then(c => c.put(req, copy)); }
+        if (res.ok) { const copy = res.clone(); event.waitUntil(caches.open(CACHE_NAME).then(c => c.put(cacheKey, copy))); }
         return res;
       })
-      .catch(() => caches.match(req).then(hit => hit || (req.mode === 'navigate' ? caches.match('index.html') : new Response('', {status:503}))))
+      .catch(() => caches.match(cacheKey).then(hit => hit || (req.mode === 'navigate' ? caches.match('index.html') : new Response('', {status:503}))))
   );
 });
 
@@ -62,7 +64,8 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const target = new URL(event.notification.data?.url || 'admin.html#orders', self.registration.scope).href;
+  const candidate = new URL(event.notification.data?.url || 'admin.html#orders', self.registration.scope);
+  const target = candidate.origin === self.location.origin && candidate.pathname.startsWith(new URL(self.registration.scope).pathname) ? candidate.href : new URL('admin.html#orders',self.registration.scope).href;
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       for (const c of list) if (c.url.startsWith(new URL('admin.html', self.registration.scope).href) && 'focus' in c) return c.navigate(target).then(() => c.focus());

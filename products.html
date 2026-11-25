@@ -2,27 +2,31 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-BV1NMqbKQKrrYPKF7D1/stnj7gJjt/4RDJSEzfCyPH8='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Products</title>
+<title>Products | FZ Cart</title>
+<meta name="description" content="Browse FZ Cart products, compare AED prices, choose variants and place your order.">
 <meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
 <script>try{document.documentElement.dataset.shopTheme=localStorage.getItem("shop-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}</script>
 <link rel="stylesheet" href="shop.css">
+<link rel="canonical" href="https://faazxdd.github.io/Shop/products.html">
+<meta property="og:title" content="FZ Cart">
+<meta property="og:type" content="website">
 </head>
 <body>
+<a href="#main-content" class="skip-link">Skip to content</a>
 <div class="shell">
 <div id="util"></div>
 <header id="site-header"></header>
-<main class="main" style="gap:18px">
+<main id="main-content" class="main" style="gap:18px">
 <div class="page-h"><div class="sub" id="p-sub">Catalogue</div><h1 id="p-title">All products</h1></div>
 <div class="bar">
   <form id="sf" role="search" style="display:flex;gap:8px;flex:1;min-width:240px;max-width:460px"><input class="in" id="q" type="search" placeholder="Search products" aria-label="Search products" autocomplete="off" maxlength="80"><button class="btn dark" type="submit">Search</button></form>
   <select class="in" id="sort" aria-label="Sort" style="width:auto"><option value="name">Name A to Z</option><option value="price_asc">Price low to high</option><option value="price_desc">Price high to low</option></select>
 </div>
+<form id="filters" class="bar" aria-label="Product filters"><label class="field">Minimum AED<input id="min-price" class="in" type="number" min="0" step="0.01"></label><label class="field">Maximum AED<input id="max-price" class="in" type="number" min="0" step="0.01"></label><label><input id="in-stock" type="checkbox"> In stock only</label><button class="btn" type="submit">Apply filters</button><button class="btn" type="reset">Clear</button></form>
 <div class="chips" id="cats" aria-label="Categories"></div>
 <div id="count" class="small muted"></div>
 <div class="grid" id="products" aria-live="polite"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
@@ -30,7 +34,7 @@
 </main>
 <footer id="site-footer"></footer>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.1"></script>
+<script src="vendor/supabase-2.110.1.js"></script>
 <script src="supabase.js"></script>
 <script src="shop.js"></script>
 <script>
@@ -40,13 +44,15 @@ renderSiteHeader(st.saved?'saved':'shop');
 const grid=$('#products');let shown=0,requestId=0;
 $('#q').value=st.q;$('#sort').value=st.sort;if(P.get('focus'))setTimeout(()=>$('#q').focus(),50);
 if(st.saved){$('#p-title').textContent='Saved products';$('#p-sub').textContent='Your list'}
+function filters(){return {minPrice:$('#min-price').value,maxPrice:$('#max-price').value,inStock:$('#in-stock').checked}}
+$('#filters').onsubmit=e=>{e.preventDefault();fetchPage(true)};$('#filters').onreset=()=>setTimeout(()=>fetchPage(true));
 function sync(){const u=new URLSearchParams();if(st.q)u.set('q',st.q);if(st.cat)u.set('cat',st.cat);if(st.sort!=='name')u.set('sort',st.sort);if(st.saved)u.set('saved','1');history.replaceState(null,'',location.pathname+(u.toString()?'?'+u:''))}
 async function fetchPage(reset){
 const request=++requestId;
 if(reset){st.off=0;shown=0;grid.innerHTML='<div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div>';$('#more').hidden=true}
 try{let rows;
-if(st.saved){const ids=Shop.favs.get();rows=ids.length?await Shop.products({ids,limit:100,sort:st.sort,search:st.q,categoryId:st.cat}):[]}
-else rows=await Shop.products({search:st.q,categoryId:st.cat,sort:st.sort,limit:PAGE,offset:st.off});
+if(st.saved){const ids=Shop.favs.get();rows=ids.length?await Shop.products({ids,limit:100,...filters(),sort:st.sort,search:st.q,categoryId:st.cat}):[]}
+else rows=await Shop.products({...filters(),search:st.q,categoryId:st.cat,sort:st.sort,limit:PAGE,offset:st.off});
 if(request!==requestId)return;
 if(reset)grid.innerHTML='';
 if(!rows.length&&reset)grid.innerHTML=st.saved&&!Shop.favs.get().length?emptyHtml('heart','Nothing saved yet','Tap the heart on any product to keep it here.','<a class="btn dark" href="products.html">Browse products</a>'):emptyHtml('search','No products found','Try a different search or category.');

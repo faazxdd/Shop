@@ -1,0 +1,2 @@
+const {defineConfig}=require('@playwright/test');
+module.exports=defineConfig({testDir:'tests/browser',fullyParallel:false,use:{baseURL:'http://127.0.0.1:4173',headless:true,serviceWorkers:'block',launchOptions:{executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox']}},webServer:{command:'npm run serve',url:'http://127.0.0.1:4173',reuseExistingServer:true},reporter:'list'});
