@@ -8,7 +8,7 @@
    Bump CACHE_VERSION on each deployment to clear old files.
    ===================================================================== */
 
-const CACHE_VERSION = 'v8-commerce-20261125-brand';
+const CACHE_VERSION = 'v8-commerce-20261125-brand2';
 const CACHE_NAME = 'shop-static-' + CACHE_VERSION;
 const SHELL = [
   './', 'index.html', 'products.html', 'cart.html', 'orders.html', 'account.html', 'account.js',
@@ -40,7 +40,7 @@ self.addEventListener('fetch', event => {
 
   const cacheKey = url.origin + url.pathname;
   event.respondWith(
-    fetch(req)
+    fetch(req, {cache: "no-cache"})
       .then(res => {
         if (res.ok) { const copy = res.clone(); event.waitUntil(caches.open(CACHE_NAME).then(c => c.put(cacheKey, copy))); }
         return res;
