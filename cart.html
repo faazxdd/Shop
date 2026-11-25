@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-TJOqaA5cSU0WfHBFZQHa16PwRm+fPQnLJ7HrYAuAegg='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-DyI5r2+6HUqmD9Pf5HLqYBfVLHMWJkS5GnjTc8izT7w='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Your cart</title>
 <meta name="robots" content="noindex">
@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <script>try{document.documentElement.dataset.shopTheme=localStorage.getItem("shop-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}</script>
-<link rel="stylesheet" href="shop.css?v=brand2">
+<link rel="stylesheet" href="shop.css?v=mobile3">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to content</a>
@@ -46,9 +46,9 @@ const missing=items.length!==lines.length;
 const total=lines.reduce((s,l)=>s+l.quantity*Number(l.product.selling_price),0),blocked=!!pricingError||missing||lines.some(l=>stockOf(l.product)==='out'),c=draft||saved();
 refreshing=false;
 box.innerHTML=`<div class="cart"><div>${lines.map(lineHtml).join('')}</div>
-<form class="card" id="co" novalidate>${missing?'<p class="msg bad">Some items are no longer available. <button type="button" class="btn sm" id="remove-missing">Remove unavailable items</button></p>':''}<h2 style="font-size:16px;margin-bottom:10px">Send your order</h2>
+<form class="card" id="co" novalidate>${missing?'<p class="msg bad">Some items are no longer available. <button type="button" class="btn sm" id="remove-missing">Remove unavailable items</button></p>':''}<h2 class="checkout-title">Order summary</h2>
 <div class="sum"><span class="muted">Items</span><span>${lines.reduce((n,l)=>n+l.quantity,0)}</span></div>
-<label class="field"><span>Coupon code</span><div class="row"><input class="in" id="coupon" maxlength="32" value="${esc(coupon)}"><button class="btn" id="apply-coupon" type="button">Apply</button></div></label>
+<label class="field"><span>Coupon code</span><div class="coupon-row"><input class="in" id="coupon" maxlength="32" value="${esc(coupon)}"><button class="btn" id="apply-coupon" type="button">Apply</button></div></label>
 <div class="sum"><span>Subtotal</span><span>${money(total)}</span></div><div class="sum"><span>Discount</span><span>−${money(quote?.discount_total||0)}</span></div><div class="sum"><span>Delivery</span><span>${quote?money(quote.delivery_charge):'Unavailable'}</span></div><div class="sum t"><span>Total</span><span>${quote?money(quote.total):'Unavailable'}</span></div>${pricingError?`<p class="msg bad">${esc(pricingError)} <button class="btn" type="button" id="retry-cart">Retry</button></p>`:''}
 <p class="help">Prices and stock are checked securely when you place your order. No online payment is needed.</p>
 <label class="field"><span>Full name</span><input class="in" name="name" autocomplete="name" maxlength="100" value="${esc(c.name||'')}" placeholder="Your name"></label>

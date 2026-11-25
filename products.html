@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <script>try{document.documentElement.dataset.shopTheme=localStorage.getItem("shop-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}</script>
-<link rel="stylesheet" href="shop.css?v=brand2">
+<link rel="stylesheet" href="shop.css?v=mobile3">
 <link rel="canonical" href="https://faazxdd.github.io/Shop/products.html">
 <meta property="og:title" content="FZ Cart">
 <meta property="og:type" content="website">
@@ -23,11 +23,15 @@
 <header id="site-header"></header>
 <main id="main-content" class="main" style="gap:18px">
 <div class="page-h"><div class="sub" id="p-sub">Catalogue</div><h1 id="p-title">All products</h1></div>
-<div class="bar">
+<div class="catalog-tools">
+<div class="bar catalog-search">
   <form id="sf" role="search" style="display:flex;gap:8px;flex:1;min-width:240px;max-width:460px"><input class="in" id="q" type="search" placeholder="Search products" aria-label="Search products" autocomplete="off" maxlength="80"><button class="btn dark" type="submit">Search</button></form>
   <select class="in" id="sort" aria-label="Sort" style="width:auto"><option value="name">Name A to Z</option><option value="price_asc">Price low to high</option><option value="price_desc">Price high to low</option></select>
 </div>
+<details class="catalog-filters"><summary>Filters</summary>
 <form id="filters" class="bar" aria-label="Product filters"><label class="field">Minimum AED<input id="min-price" class="in" type="number" min="0" step="0.01"></label><label class="field">Maximum AED<input id="max-price" class="in" type="number" min="0" step="0.01"></label><label><input id="in-stock" type="checkbox"> In stock only</label><button class="btn" type="submit">Apply filters</button><button class="btn" type="reset">Clear</button></form>
+</details>
+</div>
 <div class="chips" id="cats" aria-label="Categories"></div>
 <div id="count" class="small muted"></div>
 <div class="grid" id="products" aria-live="polite"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
