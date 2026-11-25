@@ -86,20 +86,20 @@
     } }
   ];
 
-  /* ---------- Profit: completed orders only; cost = product's CURRENT purchase price ---------- */
+  /* ---------- Profit: completed orders only; cost = immutable checkout snapshot ---------- */
   async function profitData(r) {
-    const [orders, products] = await Promise.all([
+    const [orders, costs] = await Promise.all([
       Admin.orders({ ...r, status: 'completed', limit: 5000 }),
-      Admin.products()
+      pagedRows((start,end)=>sb.from('admin_order_costs').select('*').order('item_id').range(start,end))
     ]);
-    const cost = Object.fromEntries(products.map(p => [p.id, num(p.purchase_price)]));
+    const cost = Object.fromEntries(costs.map(p => [p.item_id, num(p.unit_cost)]));
     const byProduct = {};
     let revenue = 0, costTotal = 0, unknown = 0;
     for (const o of orders) {
       for (const i of (o.order_items || [])) {
-        const qty = num(i.quantity), rev = num(i.line_total);
-        const known = !!i.product_id && (i.product_id in cost);
-        const c = known ? cost[i.product_id] * qty : 0;
+        const qty = num(i.quantity), rev = num(i.line_total) * (1 - (num(o.discount_total) / (num(o.subtotal) || num(o.total) || 1)));
+        const known = i.id in cost;
+        const c = known ? cost[i.id] * qty : 0;
         if (!known) unknown++;
         revenue += rev; costTotal += c;
         const k = i.product_id || ('name:' + i.product_name);
@@ -135,7 +135,7 @@
       el.innerHTML = `
         <div class="card">
           <h2>Orders per day</h2>
-          <div class="row wrap mb">
+          <div class="row wrap mb"><label class="field">Period<select class="input" id="report-period"><option value="30">Last 30 days</option><option value="1">Today</option><option value="7">Last 7 days</option><option value="custom">Custom dates</option></select></label>
             <label class="field" style="margin:0"><span>From</span><input class="input" type="date" id="r-from" value="${ymd(start)}"></label>
             <label class="field" style="margin:0"><span>To</span><input class="input" type="date" id="r-to" value="${ymd(today)}"></label>
           </div>
@@ -144,13 +144,13 @@
 
         <div class="card mt">
           <h2>Profit</h2>
-          <p class="help">Delivered (completed) orders in the date range above. Cost uses each product's current purchase price.</p>
+          <p class="help">Delivered (completed) orders in the date range above. Cost uses the purchase price saved at checkout. Sales exclude delivery charges and include coupon discounts. Legacy orders without cost snapshots are explicitly marked below.</p>
           <div id="profit"><div class="skeleton" style="min-height:120px"></div></div>
         </div>
 
         <div class="card mt">
           <h2>Download reports</h2>
-          <p class="help">CSV files open in Excel and Google Sheets. Order reports use the date range above.</p>
+          <p class="help">CSV files open in Excel and Google Sheets. Order reports use the date range above (up to 5,000 orders). Stock exports include up to 10,000 products and 5,000 movements.</p>
           <div class="row wrap" id="downloads">
             ${REPORTS.map(r => `<button class="btn btn-sm" data-r="${r.key}"><i class="i i-download"></i> ${esc(r.label)}${r.needsRange ? ' *' : ''}</button>`).join('')}
           </div>
@@ -164,6 +164,7 @@
         </div>`;
 
       const from = $('#r-from'), to = $('#r-to');
+      $('#report-period').onchange=e=>{if(e.target.value==='custom')return;const end=new Date(),start=new Date();start.setDate(start.getDate()-Number(e.target.value)+1);from.value=ymd(start);to.value=ymd(end);drawChart();drawProfit()};
 
       async function drawChart() {
         const box = $('#chart');
@@ -171,7 +172,7 @@
           const r = rangeISO(from.value, to.value);
           const orders = await Admin.orders({ ...r, limit: 5000 });
           const days = []; const counts = {};
-          for (let d = new Date(from.value + 'T00:00:00'); d <= new Date(to.value + 'T00:00:00') && days.length < 62; d.setDate(d.getDate() + 1)) {
+          for (let d = new Date(from.value + 'T00:00:00'); d <= new Date(to.value + 'T00:00:00') && days.length < 366; d.setDate(d.getDate() + 1)) {
             const k = ymd(d); days.push(k); counts[k] = 0;
           }
           orders.forEach(o => { const k = ymd(new Date(o.created_at)); if (k in counts) counts[k]++; });
@@ -179,7 +180,7 @@
           box.innerHTML = days.length ? `
             <div class="bars">${days.map(k => `<div class="bar" style="height:${(counts[k] / max) * 100}%" title="${k}: ${counts[k]} order(s)"></div>`).join('')}</div>
             <div class="bar-labels">${days.map((k, i) => `<span>${days.length <= 16 || i % 5 === 0 ? k.slice(8) : ''}</span>`).join('')}</div>
-            <p class="help">${orders.length} order(s) in this range &middot; busiest day: ${max}</p>`
+            <p class="help">${orders.length} order(s) in this range &middot; busiest day: ${Math.max(0,...Object.values(counts))}</p>`
             : '<div class="empty">Pick a valid date range.</div>';
         } catch (err) { box.innerHTML = `<div class="empty">${esc(errMsg(err))}</div>`; }
       }
@@ -198,7 +199,7 @@
               <thead><tr><th>Product</th><th class="num">Qty</th><th class="num">Sales</th><th class="num">Profit</th></tr></thead>
               <tbody>${d.rows.slice(0, 10).map(g => `<tr><td>${esc(g.name)}</td><td class="num">${g.qty}</td><td class="num">${money(g.revenue)}</td><td class="num">${money(g.profit)}</td></tr>`).join('')}</tbody>
             </table></div>
-            <p class="help">${d.rows.length > 10 ? 'Top 10 by profit shown. ' : ''}Download "Profit by product" for the full list.${d.unknown ? ` ${d.unknown} item(s) have no product record, so their cost counts as 0.` : ''}</p>`;
+            <p class="help">${d.rows.length > 10 ? 'Top 10 by profit shown. ' : ''}Download "Profit by product" for the full list.${d.unknown ? ` ${d.unknown} item(s) have no historical cost snapshot. Profit is incomplete; their unknown cost is counted as 0.` : ''}</p>`;
         } catch (err) { box.innerHTML = `<div class="empty">${esc(errMsg(err))}</div>`; }
       }
       from.onchange = () => { drawChart(); drawProfit(); };
@@ -233,7 +234,7 @@
               <td class="nowrap">${esc(stamp(m.created_at))}</td><td>${esc(m.products?.name || '')}</td><td><span class="badge">${esc(m.movement_type)}</span></td>
               <td class="num">${m.quantity_change > 0 ? '+' : ''}${m.quantity_change}</td><td class="num">${m.reserved_change > 0 ? '+' : ''}${m.reserved_change}</td>
               <td class="num">${m.quantity_after}</td><td>${esc(m.reason || '')}</td></tr>`).join('')}</tbody></table></div>
-            <p class="help">Showing the latest 100. Download "Stock movements" for the full log.</p>`
+            <p class="help">Showing the latest 100. Download "Stock movements" for up to 5,000 recent entries.</p>`
             : '<div class="empty">No stock movements yet.</div>';
         } catch (err) { mlist.innerHTML = `<div class="empty">${esc(errMsg(err))}</div>`; }
       }

@@ -5,10 +5,7 @@
 
 (function () {
   /* ---------- QR library (loaded only when needed; pinned version) ---------- */
-  const QR_URLS = [
-    'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js',
-    'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js'
-  ];
+  const QR_URLS = ['vendor/qrcode-1.4.4.js'];
   let qrLoading = null;
   function loadQR() {
     if (window.qrcode) return Promise.resolve();
@@ -180,7 +177,7 @@
         out.textContent = 'Reading file...';
         try {
           if (file.size > 2 * 1024 * 1024) throw new Error('File is too large (max 2 MB)');
-          const rows = parseCSV(await file.text());
+          const rows = validateImportRows(parseCSV(await file.text()));
           if (!rows.length) throw new Error('No data rows found');
           if (rows.length > 500) throw new Error('Too many rows (max 500 per import)');
           if (!('name' in rows[0])) throw new Error('The file needs a "name" column');
@@ -208,13 +205,12 @@
               const saved = await Admin.saveProduct({
                 id: prev?.id, sku: r.sku, name: r.name, brand: r.brand, description: r.description, category_id, status,
                 purchase_price: r.purchase_price, selling_price: r.selling_price, min_stock_alert: r.min_stock_alert || 5,
-                images: prev?.images || []
+                initial_quantity:prev?0:Number(r.quantity||0),images: prev?.images || [],compare_at_price:prev?.compare_at_price,variant_group:prev?.variant_group,attributes:prev?.attributes
               });
               if (prev) updated++;
               else {
                 added++;
-                const q = parseInt(r.quantity, 10) || 0;
-                if (q > 0) await Admin.stockMove(saved.id, 'in', q, 'CSV import');
+                if(r.sku) bySku[r.sku.toLowerCase()]=saved;
               }
             } catch (err) { failed.push(`Row ${i + 2}: ${errMsg(err)}`); }
           }

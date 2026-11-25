@@ -110,7 +110,7 @@
       <div><strong>Order #${esc(o.order_number)}</strong></div><div class="muted">${esc(fmtDate(o.created_at))}</div>
       <div>${esc(o.customer_name)} &middot; ${esc(o.customer_phone)}</div><hr>
       <table><thead><tr><th>Item</th><th class="n">Qty</th><th class="n">Price</th><th class="n">Total</th></tr></thead>
-      <tbody>${rows}<tr class="tot"><td colspan="3">Total</td><td class="n">${money(o.total)}</td></tr></tbody></table>
+      <tbody>${rows}<tr><td colspan="3">Discount</td><td class="n">−${money(o.discount_total||0)}</td></tr><tr><td colspan="3">Delivery</td><td class="n">${money(o.delivery_charge||0)}</td></tr><tr class="tot"><td colspan="3">Total</td><td class="n">${money(o.total)}</td></tr></tbody></table>
       <hr><div class="c">Thank you!</div>`);
   }
 
@@ -320,6 +320,9 @@
       y += 28; doc.line(M, y, R, y, RULE, 0.6);
     }
 
+    if (y + 160 > BOTTOM) newPage(false);
+    y += 20; doc.text('Discount', ITEM_X, y, {size:10});doc.text(pdfMoney(-(o.discount_total||0),cur),TOTAL_R,y,{size:10,align:'right'});
+    y += 18; doc.text('Delivery', ITEM_X, y, {size:10});doc.text(pdfMoney(o.delivery_charge||0,cur),TOTAL_R,y,{size:10,align:'right'});
     // Grand total and thank-you message
     if (y + 120 > BOTTOM) newPage(false);
     y += 14;
@@ -399,7 +402,7 @@
         <thead><tr><th>Product</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Total</th></tr></thead>
         <tbody>${items.map(i => `<tr><td>${esc(i.product_name)}</td><td class="num">${i.quantity}</td><td class="num">${money(i.unit_price)}</td><td class="num">${money(i.line_total)}</td></tr>`).join('')}</tbody>
       </table></div>
-      <div class="summary-row summary-total"><span>Total</span><span>${money(o.total)}</span></div>
+      <div class="summary-row"><span>Subtotal</span><span>${money(o.subtotal??items.reduce((n,i)=>n+Number(i.line_total),0))}</span></div><div class="summary-row"><span>Discount</span><span>−${money(o.discount_total||0)}</span></div><div class="summary-row"><span>Delivery</span><span>${money(o.delivery_charge||0)}</span></div><div class="summary-row summary-total"><span>Total</span><span>${money(o.total)}</span></div>
       <div class="row wrap mt">
         <button class="btn btn-sm" type="button" data-print="slip">Print delivery slip</button>
         <button class="btn btn-sm" type="button" data-print="bill">Print bill</button>
@@ -487,14 +490,16 @@
         <div class="tabs" id="o-filters">${STATUS_FILTERS.map(([v, l]) => `<button class="chip ${v === status ? 'active' : ''}" data-s="${v}">${l}</button>`).join('')}</div>
         <div id="o-list"></div>`;
       const list = $('#o-list');
-      let rows = [];
+      let rows = [], loadVersion=0;
 
       async function load() {
+        const version=++loadVersion;
         list.innerHTML = '<div class="skeleton"></div>';
         try {
-          rows = await Admin.orders({ status });
+          const next = await Admin.orders({ status });
+          if(version!==loadVersion||!list.isConnected)return;rows=next;
           list.innerHTML = rows.length ? rows.map(o => `
-            <div class="card list-card" data-id="${esc(o.id)}" style="cursor:pointer">
+            <div class="card list-card" data-id="${esc(o.id)}" style="cursor:pointer" role="button" tabindex="0" aria-label="Open order ${esc(o.order_number)}">
               <div class="grow">
                 <div class="row between"><div class="title">#${esc(o.order_number)} &middot; ${esc(o.customer_name)}</div>${stageBadge(o)}</div>
                 <div class="muted small">${esc(o.customer_phone)} &middot; ${(o.order_items || []).length} item(s) &middot; ${esc(fmtDate(o.created_at))}</div>
@@ -511,6 +516,7 @@
         $$('#o-filters .chip').forEach(c => c.classList.toggle('active', c === b));
         load();
       };
+      list.onkeydown=e=>{if(['Enter',' '].includes(e.key)&&e.target.matches('.list-card')){e.preventDefault();e.target.click()}};
       list.onclick = e => {
         const card = e.target.closest('.list-card'); if (!card) return;
         const o = rows.find(r => r.id === card.dataset.id);
