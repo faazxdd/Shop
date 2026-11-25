@@ -1,6 +1,15 @@
 renderSiteHeader('account');
 applyBusinessSettings();
 let recovery=location.hash.includes('type=recovery');
+const accountUrl=new URL('account.html',location.href).href;
+async function showGoogleSignIn(button) {
+ try {
+  const response=await fetch(SUPABASE_URL+'/auth/v1/settings',{headers:{apikey:SUPABASE_ANON_KEY}});
+  if(response.ok && (await response.json()).external?.google===true) button.parentElement.hidden=false;
+ } catch {
+  // Email sign-in remains available when provider settings cannot be loaded.
+ }
+}
 sb.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'){recovery=false;$('#account').replaceChildren();setTimeout(renderAccount,0)}if(event==='PASSWORD_RECOVERY'){recovery=true;setTimeout(renderAccount,0)}});
 async function renderAccount() {
  const box=$('#account'); box.innerHTML='<p>Loading your account…</p>';
@@ -17,8 +26,18 @@ async function renderAccount() {
   $('#profile').onsubmit=e=>{e.preventDefault();withBusy(e.submitter,async()=>{try{await Customer.saveName(profile.id,e.target.elements.full_name.value.trim());toast('Profile saved')}catch(e){toast(errMsg(e),'bad')}})};
   $('#logout').onclick=async()=>{await Auth.signOut();await renderAccount()};
  }else{
-  box.innerHTML=`<form class="card" id="account-form"><h2>Welcome to FZ Cart</h2><label class="field"><span>Email</span><input class="in" name="email" type="email" autocomplete="email" required></label><label class="field"><span>Password</span><input class="in" name="password" type="password" autocomplete="current-password" minlength="8" required></label><label class="field"><span>Full name (for new accounts)</span><input class="in" name="full_name" maxlength="100" autocomplete="name"></label><p id="auth-message" role="status"></p><div class="row"><button class="btn dark" name="action" value="login">Sign in</button><button class="btn" name="action" value="register">Create account</button><button class="btn" type="button" id="forgot-password">Forgot password</button></div></form>`;
-  $('#forgot-password').onclick=e=>withBusy(e.currentTarget,async()=>{const email=$('#account-form').elements.email;if(!email.reportValidity())return;try{throwIfError(await sb.auth.resetPasswordForEmail(email.value.trim(),{redirectTo:new URL('account.html',location.href).href}));$('#auth-message').textContent='If an account exists, a password reset link will arrive by email.'}catch(err){$('#auth-message').textContent=errMsg(err)}});
+  box.innerHTML=`<form class="card" id="account-form"><h2>Welcome to FZ Cart</h2><label class="field"><span>Email</span><input class="in" name="email" type="email" autocomplete="email" required></label><label class="field"><span>Password</span><input class="in" name="password" type="password" autocomplete="current-password" minlength="8" required></label><label class="field"><span>Full name (for new accounts)</span><input class="in" name="full_name" maxlength="100" autocomplete="name"></label><p id="auth-message" role="status"></p><div class="row"><button class="btn dark" name="action" value="login">Sign in</button><button class="btn" name="action" value="register">Create account</button><button class="btn" type="button" id="forgot-password">Forgot password</button></div><div class="mt" hidden><button class="btn" type="button" id="google-sign-in">Continue with Google</button></div></form>`;
+  const googleButton=$('#google-sign-in');
+  googleButton.onclick=()=>withBusy(googleButton,async()=>{
+   $('#auth-message').textContent='';
+   try {
+    throwIfError(await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:accountUrl}}));
+   } catch(err) {
+    $('#auth-message').textContent=errMsg(err);
+   }
+  });
+  void showGoogleSignIn(googleButton);
+  $('#forgot-password').onclick=e=>withBusy(e.currentTarget,async()=>{const email=$('#account-form').elements.email;if(!email.reportValidity())return;try{throwIfError(await sb.auth.resetPasswordForEmail(email.value.trim(),{redirectTo:accountUrl}));$('#auth-message').textContent='If an account exists, a password reset link will arrive by email.'}catch(err){$('#auth-message').textContent=errMsg(err)}});
   $('#account-form').onsubmit=e=>{e.preventDefault();const f=e.target.elements,register=e.submitter.value==='register';withBusy(e.submitter,async()=>{try{if(register){await Customer.signUp(f.email.value.trim(),f.password.value,f.full_name.value.trim());$('#auth-message').textContent='Check your email to confirm your account, then sign in.'}else{await Customer.signIn(f.email.value.trim(),f.password.value);await renderAccount()}}catch(err){$('#auth-message').textContent=errMsg(err)}})};
  }
  }catch(e){box.innerHTML=`<p class="msg bad">${esc(errMsg(e))}</p><button class="btn" id="retry-account">Retry</button>`;$('#retry-account').onclick=renderAccount}
