@@ -2,7 +2,7 @@
 create role anon; create role authenticated;
 create schema auth; create table auth.users(id uuid primary key);
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
-create function auth.jwt() returns jsonb language sql stable as $ select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb $;
+create function auth.jwt() returns jsonb language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb $$;
 grant usage on schema auth, public to anon,authenticated; grant execute on function auth.uid(), auth.jwt() to anon,authenticated;
 create sequence public.order_number_seq start 1000;
 create table public.categories (id uuid NOT NULL DEFAULT gen_random_uuid(), name text NOT NULL, sort_order integer NOT NULL DEFAULT 0, created_at timestamp with time zone NOT NULL DEFAULT now(), updated_at timestamp with time zone NOT NULL DEFAULT now());
