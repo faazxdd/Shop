@@ -7,8 +7,8 @@ test('schema upgrade, ownership, checkout, stock, coupons and audit', async () =
  try {
  await db.exec(await readFile('tests/fixtures/production-schema.sql','utf8'));
  for(const f of (await readdir('supabase/migrations')).sort()) await db.exec(await readFile('supabase/migrations/'+f,'utf8'));
- await db.exec(`insert into auth.users values ('00000000-0000-0000-0000-000000000001'),('00000000-0000-0000-0000-000000000002');
- insert into profiles(id,role) values ('00000000-0000-0000-0000-000000000001','admin'),('00000000-0000-0000-0000-000000000002','customer');
+ await db.exec(`insert into auth.users values ('00000000-0000-0000-0000-000000000001'),('00000000-0000-0000-0000-000000000002'),('00000000-0000-0000-0000-000000000003');
+ insert into profiles(id,role) values ('00000000-0000-0000-0000-000000000001','admin'),('00000000-0000-0000-0000-000000000002','customer'),('00000000-0000-0000-0000-000000000003','customer');
  insert into business_settings(id,delivery_charge) values(1,10);
  insert into products(id,name,selling_price,purchase_price,quantity,status) values ('10000000-0000-0000-0000-000000000001','Phone',100,40,3,'published');
  insert into coupons(code,kind,value,max_uses) values('SAVE10','percent',10,1);`);
@@ -18,6 +18,8 @@ test('schema upgrade, ownership, checkout, stock, coupons and audit', async () =
  assert.equal((await db.query('select * from public_products')).rows.length,1);
  await assert.rejects(db.query('select purchase_price from products'));
  await assert.rejects(db.query('select * from coupons'));
+ await assert.rejects(checkout(),/permission denied/);
+ await db.exec(`reset role; set role authenticated; select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000003',false)`);
  const order=(await checkout()).rows[0].r; assert.equal(order.total,190);
  assert.equal((await checkout()).rows[0].r.order_id,order.order_id);
  await assert.rejects(db.query(`select checkout_v8('Test Customer','+971501234567','Dubai',$1::jsonb,'other-key-123',null)`,[items]),/Not enough stock/);
@@ -72,6 +74,9 @@ test('customer ownership, forged prices, discounts, legacy API and stock rollbac
  const stock=(await db.query('select quantity,reserved_quantity from products where id=$1',[product.id])).rows[0];assert.equal(stock.quantity,5);assert.equal(stock.reserved_quantity,0);
  const free=(await db.query('select quote_order($1::jsonb,$2) q',[items,'FREE'])).rows[0].q;assert.equal(free.discount_total,200);assert.equal(free.total,15);
  await assert.rejects(db.query(`select quote_order($1::jsonb,null)`,[JSON.stringify([{product_id:product.id,quantity:0}])]),/Invalid quantity/);
+ await db.exec(`select set_config('request.jwt.claims','{"is_anonymous":true}',false)`);
+ await assert.rejects(db.query(`select checkout_v8('Customer','+971501234567','Dubai',$1::jsonb,'anon-jwt-key',null)`,[items]),/Sign in/);
+ await db.exec(`select set_config('request.jwt.claims','',false)`);
  await assert.rejects(db.query(`select private.place_order('Customer','+971501234567','Dubai',$1::jsonb,'private-key')`,[items]),/permission/);
  }finally{await db.close()}
 });

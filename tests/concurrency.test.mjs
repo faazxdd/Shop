@@ -15,8 +15,8 @@ test('PostgreSQL 17 concurrent orders never oversell or redeem a coupon twice',{
  const admin=pg.getPgClient();await admin.connect();clients.push(admin);
  await admin.query(await readFile('tests/fixtures/production-schema.sql','utf8'));
  for(const file of (await readdir('supabase/migrations')).sort())await admin.query(await readFile('supabase/migrations/'+file,'utf8'));
- await admin.query(`insert into business_settings(id)values(1);insert into products(id,name,selling_price,quantity,status)values('10000000-0000-0000-0000-000000000001','Last phone',100,1,'published'),('10000000-0000-0000-0000-000000000002','Other phone',100,10,'published');insert into coupons(code,kind,value,max_uses)values('ONCE','fixed',5,1);`);
- for(let i=0;i<8;i++){const c=pg.getPgClient();await c.connect();await c.query('set role anon');clients.push(c)}
+ await admin.query(`insert into auth.users values('00000000-0000-0000-0000-000000000009');insert into business_settings(id)values(1);insert into products(id,name,selling_price,quantity,status)values('10000000-0000-0000-0000-000000000001','Last phone',100,1,'published'),('10000000-0000-0000-0000-000000000002','Other phone',100,10,'published');insert into coupons(code,kind,value,max_uses)values('ONCE','fixed',5,1);`);
+ for(let i=0;i<8;i++){const c=pg.getPgClient();await c.connect();await c.query('set role authenticated');await c.query("select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000009',false)");clients.push(c)}
  const call=(c,id,key,coupon=null)=>c.query(`select checkout_v8('Test Customer','+971501234567','Dubai',$1::jsonb,$2,$3) o`,[JSON.stringify([{product_id:id,quantity:1}]),key,coupon]);
  const results=await Promise.allSettled(clients.slice(1).map((c,i)=>call(c,'10000000-0000-0000-0000-000000000001','parallel-stock-'+i)));
  assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
