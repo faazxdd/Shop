@@ -18,7 +18,7 @@ alter table public.orders add column if not exists discount_total numeric(12,2) 
 alter table public.orders add column if not exists delivery_charge numeric(12,2) not null default 0 check(delivery_charge>=0);
 alter table public.orders add column if not exists coupon_code text;
 create index orders_customer_idx on public.orders(customer_id,created_at desc);
-create index order_items_order_idx on public.order_items(order_id);
+create index if not exists order_items_order_idx on public.order_items(order_id);
 alter table public.business_settings add column if not exists delivery_charge numeric(12,2) not null default 0 check(delivery_charge>=0);
 alter table public.business_settings add column if not exists free_delivery_above numeric(12,2) check(free_delivery_above>=0);
 

@@ -12,8 +12,14 @@ async function mock(page){
  await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(body)});
  });
 }
+const uid='30000000-0000-0000-0000-000000000001';
+async function signIn(page){
+ const user={id:uid,email:'qa@example.invalid',aud:'authenticated',role:'authenticated',app_metadata:{},user_metadata:{full_name:'QA Customer'}};
+ const token=[{alg:'HS256',typ:'JWT'},{sub:uid,role:'authenticated',exp:Math.floor(Date.now()/1000)+3600},'test-only'].map(v=>Buffer.from(typeof v==='string'?v:JSON.stringify(v)).toString('base64url')).join('.');
+ await page.addInitScript(({token,user})=>localStorage.setItem('sb-gcmudhejegesvwdpkkdy-auth-token',JSON.stringify({access_token:token,refresh_token:'test-only',expires_at:Math.floor(Date.now()/1000)+3600,expires_in:3600,token_type:'bearer',user})),{token,user});
+}
 for(const width of [375,390,768,1440])test(`catalogue, gallery and responsive layout at ${width}px`,async({page})=>{
- await page.setViewportSize({width,height:900});await mock(page);
+ await page.setViewportSize({width,height:900});await mock(page);await signIn(page);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('/products.html');await expect(page.getByRole('heading',{name:'Phone Pro'})).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
@@ -40,7 +46,7 @@ test('filters are applied on the server query',async({page})=>{
  await page.getByRole('button',{name:'Apply filters'}).click();await request;
 });
 test('variant selection and coupon errors preserve checkout input',async({page})=>{
- await mock(page);
+ await mock(page);await signIn(page);
  await page.route('**/rest/v1/public_products*',route=>{
  const p={...product,variant_group:'phone',images:['/icons/icon-192.png']};
  const p2={...p,id:'10000000-0000-0000-0000-000000000002',name:'Phone Silver',attributes:{colour:'Silver'}};
@@ -57,4 +63,37 @@ test('variant selection and coupon errors preserve checkout input',async({page})
 test('catalogue treats malicious product text as text',async({page})=>{
  await mock(page);await page.route('**/rest/v1/public_products*',route=>route.fulfill({contentType:'application/json',body:JSON.stringify([{...product,name:'<img src=x onerror=alert(1)>'}])}));
  let dialogs=0;page.on('dialog',d=>{dialogs++;d.dismiss()});await page.goto('/products.html');await expect(page.locator('.pt')).toContainText('<img src=x onerror=alert(1)>');expect(await page.locator('.pt img').count()).toBe(0);expect(dialogs).toBe(0);
+});
+
+test('mobile account separates Google, email signup and password recovery', async ({page}) => {
+ await page.setViewportSize({width:390,height:844});
+ await mock(page);
+ await page.route('**/auth/v1/settings',route=>route.fulfill({json:{external:{google:true}}}));
+ await page.goto('/account.html');
+ const google=page.getByRole('button',{name:'Continue with Google'});
+ await expect(google).toBeVisible();
+ await expect(google.locator('svg')).toHaveCount(1);
+ await expect(page.getByLabel('Full name')).toHaveCount(0);
+ await page.getByLabel('Email',{exact:true}).fill('customer@example.com');
+ await page.getByRole('button',{name:'Show password'}).click();
+ await expect(page.getByLabel('Password',{exact:true})).toHaveAttribute('type','text');
+ await page.getByRole('button',{name:'Create account',exact:true}).click();
+ await expect(page.getByLabel('Full name')).toBeVisible();
+ await expect(page.getByLabel('Email',{exact:true})).toHaveValue('customer@example.com');
+ await page.getByRole('button',{name:'Back to sign in'}).click();
+ await page.getByRole('button',{name:'Forgot password?'}).click();
+ await expect(page.getByRole('button',{name:'Send reset link'})).toBeVisible();
+ await expect(page.getByLabel('Password',{exact:true})).toHaveCount(0);
+ await expect(page.getByLabel('Email',{exact:true})).toHaveValue('customer@example.com');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+test('checkout asks visitors to sign in and keeps the cart',async({page})=>{
+ await mock(page);
+ await page.goto('/products.html');await page.getByRole('button',{name:'Phone Pro',exact:true}).click();
+ await page.getByRole('button',{name:'Add to cart'}).click();await page.goto('/cart.html');
+ await expect(page.getByRole('heading',{name:'Sign in to check out'})).toBeVisible();
+ await expect(page.locator('#co')).toHaveCount(0);
+ await expect(page.getByRole('link',{name:'Sign in'})).toHaveAttribute('href','account.html?checkout=1');
+ await expect(page.locator('.cl')).toHaveCount(1);
 });

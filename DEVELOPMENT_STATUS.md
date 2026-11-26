@@ -21,7 +21,7 @@ Branch: `fz-cart-v8`. Starting V8 revision: `4c81e8e`. Production database was a
 ## Remaining release gates and limitations
 
 - Apply the migration to an isolated **real Supabase staging project** and run `supabase/postflight.sql`, advisors, real Auth/Storage/REST checks, email signup/recovery and live order tests. The local fixtures simplify managed Auth/Storage privileges. No staging project was available for this task.
-- Decide and validate a **server-enforced guest-checkout abuse control** before open public release. The existing anonymous checkout can be abused to reserve stock with many unique requests despite overselling prevention. See [security review](docs/SECURITY.md).
+- Checkout now requires login (migration `20261125045933`, enforced in the database). Before public release, confirm in staging that Anonymous sign-ins are off, email confirmation and rate limits are on, and sign-up abuse is acceptable. See [security review](docs/SECURITY.md).
 - Verify real iOS Safari, Android Chrome and tablet/desktop PWA installation, native sharing, printing, QR, offline behavior and multilingual invoice needs. Browser viewport tests are representative only; downloadable PDF currently transliterates unsupported scripts.
 - Supabase Auth leaked-password protection was disabled in the read-only advisor audit. Enable it and verify rate limits/email redirect configuration in the release environment.
 - Reporting is intentionally bounded: 5,000 orders/movements, 10,000 products, latest 200 customers/audit entries, latest 100 account orders. Historical orders have no cost snapshot and show incomplete profit rather than guessed costs.

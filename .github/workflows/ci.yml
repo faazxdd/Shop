@@ -1,9 +1,9 @@
 name: V8 checks
 on:
   push:
-    branches: [fz-cart-v8]
+    branches: [fz-cart-v8, 'fix/**']
   pull_request:
-    branches: [main]
+    branches: [fz-cart-v8, main]
 permissions:
   contents: read
 jobs:
