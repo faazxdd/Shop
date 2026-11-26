@@ -50,5 +50,5 @@ Prefer a forward fix. Frontend rollback is possible by redeploying the prior rev
 
 - Staging project URL/public key, email redirect allowlist, working confirmation/recovery email delivery and bucket restrictions.
 - Enable leaked-password protection if available on your Supabase plan; review password strength and rate limits.
-- Guest checkout needs a reviewed abuse-control policy before a public launch (see `SECURITY.md`). No SMS/email, CAPTCHA, push-delivery or payment provider was configured.
+- Checkout requires login: confirm Anonymous sign-ins are disabled and email confirmation/rate limits are on (see `SECURITY.md`). No SMS/email, CAPTCHA, push-delivery or payment provider was configured.
 - Physical-device native share/print/PWA testing and hosted load testing.

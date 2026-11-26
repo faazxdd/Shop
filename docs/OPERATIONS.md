@@ -12,7 +12,7 @@ CSV import validates the entire file's structure and numeric values before askin
 
 ## Orders and delivery
 
-Customers may checkout as guests or sign in. Signed-in orders appear in account history; guest orders remain in device tracking. A pending order reserves stock. Accept it, then update Packed/Out for delivery; mark delivered only after delivery. Cancel/reject releases reservations. Closed orders cannot be completed twice. Payments are handled outside this platform; no online gateway is integrated.
+Customers must sign in to place an order; orders appear in account history. Visitors can still browse, get quotes and track an order by number and phone (older guest orders remain in device tracking). A pending order reserves stock. Accept it, then update Packed/Out for delivery; mark delivered only after delivery. Cancel/reject releases reservations. Closed orders cannot be completed twice. Payments are handled outside this platform; no online gateway is integrated.
 
 Promotions controls coupon type/value, minimum subtotal, maximum uses, expiry and activation. Delivery settings control flat AED delivery and a free-delivery threshold after discounts. The checkout quote includes subtotal, discount and delivery. Final submission validates current stock/prices again.
 
