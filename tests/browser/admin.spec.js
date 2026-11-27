@@ -72,3 +72,25 @@ test('image finder requires explicit approval and product save',async({page})=>{
  await page.getByRole('button',{name:'Approve image for this product'}).click();await expect(page.locator('#imgs .image-tile')).toHaveCount(1);expect(saves).toBe(0);
  await page.locator('#save').click();await expect(page.getByRole('dialog')).toBeHidden();expect(saves).toBe(1);expect(payload.p_initial_quantity).toBe(5);expect(payload.p_product.attributes).toEqual({Colour:'Black',Storage:'256 GB'});expect(payload.p_product.images).toEqual(['https://upload.wikimedia.org/authorized-example.jpg']);
 });
+
+test('business settings submit the normalized values and update the QR target',async({page})=>{
+ await adminMock(page);
+ let saved;
+ await page.route('**/rest/v1/business_settings*',async route=>{
+  if(route.request().method()!=='PATCH')return route.fallback();
+  saved=route.request().postDataJSON();
+  return route.fulfill({status:204});
+ });
+ await page.goto('/admin.html');
+ await page.locator('#nav').getByRole('button',{name:'Settings',exact:true}).click();
+ await page.getByLabel('Business name').fill('FZ Cart');
+ await page.getByLabel('Currency').fill('aed');
+ await page.getByLabel('Public website link').fill('https://shop.example.invalid/');
+ await page.getByRole('button',{name:'Save business settings'}).click();
+ await expect(page.locator('#qr-url')).toHaveText('https://shop.example.invalid/');
+ expect(saved).toMatchObject({business_name:'FZ Cart',currency:'AED',public_url:'https://shop.example.invalid/'});
+ const download=page.waitForEvent('download');
+ await page.getByRole('button',{name:'Download SVG'}).click();
+ const file=await download;
+ expect(await fs.readFile(await file.path(),'utf8')).toContain('<svg');
+});

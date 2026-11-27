@@ -89,3 +89,30 @@ test('mobile account separates Google, email signup and password recovery', asyn
  await expect(page.getByLabel('Email',{exact:true})).toHaveValue('customer@example.com');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
+
+test('order tracking validates input, saves a match and removes it locally', async ({page}) => {
+ await mock(page);
+ await page.route('**/rest/v1/rpc/track_orders', route => {
+  const known = route.request().postDataJSON().p_lookups.some(({n,p})=>n==='1001' && p==='+971500000000');
+  return route.fulfill({json:known?[{order_number:1001,status:'processing',step:'packed',total:110,items:[{name:'Phone Pro',qty:1}]}]:[]});
+ });
+ await page.goto('/orders.html');
+ const form=page.locator('#lookup');
+ const submit=form.getByRole('button',{name:'Track order'});
+ await submit.click();
+ await expect(form.locator('#lookup-err')).toHaveText('Enter the order number and your phone number.');
+ await form.getByLabel('Order number').fill('1001');
+ await form.getByLabel('Phone number').fill('+971500000001');
+ await submit.click();
+ await expect(form.locator('#lookup-err')).toHaveText('No order found. Check the number and phone.');
+ await form.getByLabel('Phone number').fill('+971500000000');
+ await submit.click();
+ const card=page.locator('.order-card');
+ await expect(card).toContainText('Order #1001');
+ await expect(card.locator('.current')).toContainText('Packed');
+ await page.reload();
+ await expect(card).toContainText('Order #1001');
+ await card.getByRole('button',{name:'Remove from list'}).click();
+ await page.getByRole('dialog').getByRole('button',{name:'Remove',exact:true}).click();
+ await expect(card).toHaveCount(0);
+});
