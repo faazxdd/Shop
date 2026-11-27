@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-sSITTlKFxWWQiQolclujo5+P00xwwVYQkf6yUUhKwYY='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-5Rnm5VGmGSbf5XT0oYYUl03gq1W5QM5xK0z3VJWBmcQ='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>My orders</title>
 <meta name="robots" content="noindex">
@@ -34,8 +34,8 @@
 <footer id="site-footer"></footer>
 </div>
 <script src="vendor/supabase-2.110.1.js"></script>
-<script src="supabase.js"></script>
-<script src="shop.js?v=brand2"></script>
+<script src="supabase.js?v=collections"></script>
+<script src="shop.js?v=fc-brand"></script>
 <script>
 const justPlaced=location.hash==='#placed';
 renderSiteHeader('orders');
@@ -46,16 +46,46 @@ const listEl=$('#list');let phone='',firstLoad=true;
 function stage(o){if(o.status==='completed')return 4;if(o.status==='confirmed'||o.status==='processing')return o.step==='out_for_delivery'?3:o.step==='packed'?2:1;return 0}
 function waLink(o){const d=(window._shopSettings?.contact_phone||'').replace(/\D/g,'');if(!d)return '<span></span>';const t=encodeURIComponent('Hi, about my order #'+o.order_number);return `<a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/${d}?text=${t}">${ic('chat')}Message the shop</a>`}
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-copy]');if(!b)return;try{await navigator.clipboard.writeText(b.dataset.copy);toast('Order number copied','ok')}catch{}});
+let canReorder=false;
 function orderCard(o){const closed=o.status==='rejected'||o.status==='cancelled',idx=stage(o),items=(o.items||[]).map(i=>`${esc(i.name)} &times; ${esc(i.qty)}`).join(', ');
 const tl=closed?'':`<ul class="tl" aria-label="Order progress">${STEPS.map((l,i)=>{const c=i<idx||idx===4?'done':i===idx?'current':'';return `<li class="${c}"><span class="tl-dot">${c==='done'?ic('check'):''}</span>${esc(l)}${i===idx&&idx!==4?`<small>${esc(HINTS[i])}</small>`:''}</li>`}).join('')}</ul>`;
 const msg=closed?`<div class="msg bad">${o.status==='rejected'?'Sorry, the shop could not accept this order.':'This order was cancelled.'}${phone?' Please call us for details.':''}</div>`:`<div class="msg ${idx===4?'good':''}">${esc(MESSAGES[idx])}</div>`;
-return `<div class="card order-card" data-n="${esc(o.order_number)}"><div class="order-top"><div><div class="num">Order #${esc(o.order_number)}</div><div class="muted small">${esc(fmtDate(o.created_at))}</div></div><strong class="price">${money(o.total)}</strong></div>${items?`<div class="order-items muted">${items}</div>`:''}${msg}${tl}<div class="between mt">${waLink(o)}<button class="btn sm" data-hide>Remove from list</button></div></div>`}
+return `<div class="card order-card" data-n="${esc(o.order_number)}"><div class="order-top"><div><div class="num">Order #${esc(o.order_number)}</div><div class="muted small">${esc(fmtDate(o.created_at))}</div></div><strong class="price">${money(o.total)}</strong></div>${items?`<div class="order-items muted">${items}</div>`:''}${msg}${tl}<div class="between mt">${waLink(o)}${canReorder&&o.status==='completed'?'<button type="button" class="btn sm" data-reorder>Buy again</button>':''}<button class="btn sm" data-hide>Remove from list</button></div></div>`}
 async function load(){const lookups=Shop.myOrders.get();
 if(!lookups.length){listEl.innerHTML=emptyHtml('list','No orders yet','Orders you place on this device show up here.','<a class="btn dark" href="products.html">Browse products</a>');return}
 try{const rows=await Shop.trackOrders(lookups);listEl.innerHTML=rows.length?rows.map(orderCard).join(''):emptyHtml('search','We could not find your saved orders','')}
 catch(err){console.error(err);if(firstLoad)listEl.innerHTML=`<div class="msg bad" style="margin-bottom:14px">Live status is unavailable. Showing the orders saved on this device; it will update when the connection is back.<br><small>${esc(errMsg(err))}</small></div>`+lookups.map(l=>orderCard({order_number:l.n,created_at:l.d||'',total:l.t||0,status:'pending',items:[]})).join('')}
 firstLoad=false}
-listEl.addEventListener('click',async e=>{if(!e.target.closest('[data-hide]'))return;const n=e.target.closest('.order-card').dataset.n;
+listEl.addEventListener('click',async e=>{
+const reorder=e.target.closest('[data-reorder]');
+if(reorder){
+  await withBusy(reorder,async()=>{
+    try{
+      const items=await Shop.deliveredOrderItems(reorder.closest('.order-card').dataset.n);
+      const ids=[...new Set(items.map(item=>item.product_id).filter(Boolean))];
+      const products=await Shop.products({ids,limit:ids.length});
+      const available=new Set(products.filter(product=>stockOf(product)!=='out').map(product=>product.id));
+      const cart=Shop.cart.get();
+      let added=0, skipped=0;
+      for(const item of items){
+        const quantity=Number(item.quantity);
+        const line=cart.find(entry=>entry.product_id===item.product_id);
+        if(!available.has(item.product_id)||!Number.isInteger(quantity)||quantity<1||(!line&&cart.length>=50)){skipped++;continue}
+        const count=Math.min(quantity,999-(line?.quantity||0));
+        if(count){
+          if(line)line.quantity+=count;
+          else cart.push({product_id:item.product_id,quantity:count});
+          added+=count;
+        }
+        if(count<quantity)skipped++;
+      }
+      if(added)Shop.cart.save(cart);
+      toast(added?`Added ${added} to cart.${skipped?' Some items or quantities could not be added.':''}`:'No items could be added to the cart.',added?'ok':'bad');
+    }catch(error){toast(errMsg(error),'bad')}
+  });
+  return;
+}
+if(!e.target.closest('[data-hide]'))return;const n=e.target.closest('.order-card').dataset.n;
 if(!(await confirmDialog('Remove this order from this device? You can track it again with the order number and phone.','Remove')))return;Shop.myOrders.remove(n);load()});
 $('#lookup').addEventListener('submit',async e=>{e.preventDefault();const f=e.target.elements,err=$('#lookup-err'),n=f.n.value.trim().replace(/^#/,''),p=f.p.value.trim();err.hidden=true;
 if(!n||p.replace(/\D/g,'').length<6){err.textContent='Enter the order number and your phone number.';err.hidden=false;return}
@@ -63,7 +93,7 @@ await withBusy($('#lookup-btn'),async()=>{try{const rows=await Shop.trackOrders(
 Shop.myOrders.add(n,p);f.n.value='';f.p.value='';toast('Order added to your list','ok');await load()}catch(ex){err.textContent=errMsg(ex);err.hidden=false}})});
 function showPlaced(){let o=null;try{o=JSON.parse(sessionStorage.getItem('last_order')||'null')}catch{o=null}if(!justPlaced||!o||!o.order_number)return;
 $('#placed').innerHTML=`<div class="card confirm"><div class="cicon">${ic('check')}</div><h2 style="font-size:20px">Order sent</h2><p class="muted">Thank you! Our team will contact you shortly to confirm your order.</p><div class="onum">#${esc(o.order_number)}<button type="button" data-copy="${esc(o.order_number)}" aria-label="Copy order number">${ic('copy')}</button></div><p class="help" style="margin:0">Keep this number. Progress shows below and updates by itself.</p></div>`}
-(async()=>{showPlaced();const s=await applyBusinessSettings();if(s&&s.contact_phone)phone=s.contact_phone;await load();
+(async()=>{showPlaced();const s=await applyBusinessSettings();if(s&&s.contact_phone)phone=s.contact_phone;try{const session=await Auth.getSession();canReorder=!!session&&!session.user.is_anonymous}catch(error){console.error(error)}await load();
 setInterval(()=>{if(!document.hidden)load()},Math.max(30000,Shop.myOrders.get().length*12000));document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()})})();
 </script>
 </body>
