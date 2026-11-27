@@ -93,7 +93,7 @@ const Shop = {
   },
 
   // sort: 'name' (default) | 'price_asc' | 'price_desc'.  ids: only these products (used by "Saved").
-  async products({ search = '', categoryId = '', limit = 60, offset = 0, sort = 'name', ids = null, minPrice = '', maxPrice = '', inStock = false, variantGroup = '' } = {}) {
+  async products({ search = '', categoryId = '', limit = 60, offset = 0, sort = 'name', ids = null, minPrice = '', maxPrice = '', inStock = false, brand = '', variantGroup = '' } = {}) {
     if (ids && !ids.length) return [];
     let q = sb.from('public_products')
       .select('id,name,description,images,selling_price,category_id,category_name,stock_status,brand,sku,compare_at_price,variant_group,attributes');
@@ -107,6 +107,7 @@ const Shop = {
     if (categoryId) q = q.eq('category_id', categoryId);
     if (minPrice !== '' && Number.isFinite(Number(minPrice))) q = q.gte('selling_price', Number(minPrice));
     if (maxPrice !== '' && Number.isFinite(Number(maxPrice))) q = q.lte('selling_price', Number(maxPrice));
+    if (brand) q = q.eq('brand', brand);
     if (inStock) q = q.neq('stock_status', 'out_of_stock');
     if (variantGroup) q = q.eq('variant_group', variantGroup);
     return throwIfError(await q);
@@ -202,6 +203,21 @@ const Shop = {
   },
 
   // Looks up orders by order number + phone (server function, no login needed).
+  async brands() {
+    const query = sb.from('public_products').select('brand').not('brand', 'is', null).order('brand').order('id');
+    const rows = await pagedRows((start,end) => query.range(start,end));
+    return [...new Set(rows.map(row => row.brand).filter(brand => brand?.trim()))];
+  },
+
+  async deliveredOrderItems(orderNumber) {
+    const session = await Auth.getSession();
+    if (!session || session.user.is_anonymous) throw new Error('Sign in to buy these items again.');
+    const order = throwIfError(await sb.from('orders').select('order_items(product_id,quantity)')
+      .eq('customer_id',session.user.id).eq('order_number',orderNumber).eq('status','completed').maybeSingle());
+    if (!order) throw new Error('This delivered order is not available in your account.');
+    return order.order_items || [];
+  },
+
   async trackOrders(lookups) {
     if (!lookups.length) return [];
     const { data, error } = await sb.rpc('track_orders', { p_lookups: lookups.map(l => ({ n: l.n, p: l.p })) });
