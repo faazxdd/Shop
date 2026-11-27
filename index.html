@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-hkF1SZmVuu6/dPQwDOOXLfCWczv6KDU57CuLhg+DfQQ='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-GOxuxrof83krQYDmCpG5w2HezRHJ9gnM6op8m34XHXI='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>FZ Cart</title>
+<title>FC Cart</title>
 <meta name="description" content="Browse our products and place your order online.">
 <meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="manifest.json">
@@ -12,9 +12,17 @@
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <script>try{document.documentElement.dataset.shopTheme=localStorage.getItem("shop-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}</script>
 <link rel="stylesheet" href="shop.css?v=mobile3">
+<style>
+.collection-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,155px),1fr));gap:12px}
+.collection-card{display:grid;grid-template-rows:112px auto;gap:10px;padding:10px;border:1px solid var(--s2,#dadfe4);border-radius:14px;color:inherit;text-decoration:none}
+.collection-card:hover,.collection-card:focus-visible{border-color:var(--blue)}
+.collection-card .collection-art{display:grid;place-items:center;overflow:hidden;border-radius:8px;background:#f1f3f5;color:#53616d}
+.collection-art img{width:100%;height:112px;object-fit:contain}
+.collection-card strong{overflow-wrap:anywhere}
+</style>
 
 <link rel="canonical" href="https://faazxdd.github.io/Shop/index.html">
-<meta property="og:title" content="FZ Cart">
+<meta property="og:title" content="FC Cart">
 <meta property="og:type" content="website">
 </head>
 <body>
@@ -23,9 +31,9 @@
 <div id="util"></div>
 <header id="site-header"></header>
 <main id="main-content" class="main">
-<section class="shop-intro"><h1>FZ Cart</h1><form id="sf" class="search" role="search"><input class="in" id="q" type="search" placeholder="Search products" aria-label="Search products" maxlength="80"><button class="btn dark" type="submit">Search</button></form></section>
+<section class="shop-intro"><h1>FC Cart</h1><form id="sf" class="search" role="search"><input class="in" id="q" type="search" placeholder="Search products" aria-label="Search products" maxlength="80"><button class="btn dark" type="submit">Search</button></form></section>
 <section id="saved-sec" hidden aria-labelledby="saved-title"><div class="sh-head"><div><h2 id="saved-title">Saved by you</h2></div><a href="products.html?saved=1">See all</a></div><div class="hs" id="saved"></div></section>
-<section id="cat-sec" aria-labelledby="cat-title"><div class="sh-head"><div><h2 id="cat-title">Shop by category</h2></div></div><div class="chips" id="categories" aria-live="polite"></div></section>
+<section id="cat-sec" aria-labelledby="cat-title"><div class="sh-head"><div><h2 id="cat-title">Shop by collection</h2></div></div><div class="collection-cards" id="categories" aria-live="polite"></div></section>
 <div id="category-sections"></div>
 <section aria-labelledby="latest-title"><div class="sh-head"><div><h2 id="latest-title">Products</h2></div><a href="products.html">View all products</a></div>
 <div class="grid" id="products" aria-live="polite"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></section>
@@ -35,8 +43,8 @@
 <footer id="site-footer"></footer>
 </div>
 <script src="vendor/supabase-2.110.1.js"></script>
-<script src="supabase.js"></script>
-<script src="shop.js?v=brand2"></script>
+<script src="supabase.js?v=collections"></script>
+<script src="shop.js?v=fc-brand"></script>
 <script>
 renderSiteHeader('home');
 const grid=$('#products');
@@ -49,16 +57,28 @@ async function loadCategorySections(categories){
     const href = 'products.html?cat=' + encodeURIComponent(category.id);
     section.setAttribute('aria-labelledby', headingId);
     section.innerHTML = `<div class="sh-head"><h2 id="${esc(headingId)}">${esc(category.name)}</h2><a href="${href}">View all</a></div><div class="grid"></div>`;
-    return {category, section};
+    const card = document.createElement('a');
+    card.className = 'collection-card';
+    card.href = href;
+    card.innerHTML = `<span class="collection-art" aria-hidden="true">${ic('box')}</span><strong>${esc(category.name)}</strong>`;
+    return {category, section, card};
   });
+  $('#categories').replaceChildren(...sections.map(({card}) => card));
   $('#category-sections').replaceChildren(...sections.map(({section}) => section));
   for (let offset = 0; offset < sections.length; offset += 4) {
-    await Promise.all(sections.slice(offset, offset + 4).map(async ({category, section}) => {
+    await Promise.all(sections.slice(offset, offset + 4).map(async ({category, section, card}) => {
       const preview = section.querySelector('.grid');
       try {
         const rows = await Shop.products({categoryId: category.id, limit: 4});
         if (rows.length) preview.innerHTML = rows.map(productCardHtml).join('');
         else preview.remove();
+        const source = rows.find(product => product.images?.[0])?.images[0];
+        if (source) {
+          const image = document.createElement('img');
+          image.alt = '';
+          image.addEventListener('load', () => card.querySelector('.collection-art').replaceChildren(image), {once:true});
+          image.src = source;
+        }
       } catch (error) {
         console.error(error);
         preview.remove();
@@ -66,9 +86,9 @@ async function loadCategorySections(categories){
     }));
   }
 }
-async function load(){try{const s=await applyBusinessSettings();document.title="FZ Cart";
+async function load(){try{const s=await applyBusinessSettings();document.title="FC Cart";
 const [cats,products]=await Promise.all([Shop.categories(),Shop.products({limit:12})]);
-if(cats.length)$('#categories').innerHTML=cats.map(c=>`<a class="chip" href="products.html?cat=${encodeURIComponent(c.id)}">${esc(c.name)}</a>`).join('');else $('#cat-sec').hidden=true;
+$('#cat-sec').hidden=!cats.length;
 grid.innerHTML=products.length?products.map(productCardHtml).join(''):emptyHtml('box','No products yet','Check back soon.');
 loadCategorySections(cats);loadSaved();loadRecent()}catch(err){console.error(err);grid.innerHTML=emptyHtml('alert','Could not load products','Refresh the page to try again.');$('#cat-sec').hidden=true}}
 window.addEventListener('favs-changed',loadSaved);
