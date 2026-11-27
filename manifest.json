@@ -1,6 +1,6 @@
 {
-  "name": "FC Cart",
-  "short_name": "FC Cart",
+  "name": "FZ Cart",
+  "short_name": "FZ Cart",
   "description": "Browse products and place your order.",
   "start_url": "index.html",
   "scope": "./",
