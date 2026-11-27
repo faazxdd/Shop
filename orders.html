@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-VhWmd/+Q8F099eu+UNbZ0CXHAQ4K41weWG43XsFZOvQ='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-ZxQ5RidkNImJyAPiA5PlTyQVbhpOm1AZB7iYiIKHQXk='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>My orders</title>
 <meta name="robots" content="noindex">
@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <script>try{document.documentElement.dataset.shopTheme=localStorage.getItem("shop-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}</script>
-<link rel="stylesheet" href="shop.css?v=mobile3">
+<link rel="stylesheet" href="shop.css?v=premium-motion">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to content</a>
@@ -34,8 +34,8 @@
 <footer id="site-footer"></footer>
 </div>
 <script src="vendor/supabase-2.110.1.js"></script>
-<script src="supabase.js?v=cart-limit-ten"></script>
-<script src="shop.js?v=cart-limit-ten"></script>
+<script src="supabase.js?v=premium-motion"></script>
+<script src="motion.js?v=premium-motion"></script><script src="shop.js?v=premium-motion"></script>
 <script>
 const justPlaced=location.hash==='#placed';
 renderSiteHeader('orders');
@@ -65,21 +65,16 @@ if(reorder){
       const ids=[...new Set(items.map(item=>item.product_id).filter(Boolean))];
       const products=await Shop.products({ids,limit:ids.length});
       const available=new Set(products.filter(product=>stockOf(product)!=='out').map(product=>product.id));
-      const cart=Shop.cart.get();
       let added=0, skipped=0;
       for(const item of items){
         const quantity=Number(item.quantity);
-        const line=cart.find(entry=>entry.product_id===item.product_id);
-        if(!available.has(item.product_id)||!Number.isInteger(quantity)||quantity<1||(!line&&cart.length>=50)){skipped++;continue}
-        const count=Math.min(quantity,Shop.cart.MAX_QUANTITY-(line?.quantity||0));
-        if(count){
-          if(line)line.quantity+=count;
-          else cart.push({product_id:item.product_id,quantity:count});
+        if(!available.has(item.product_id)||!Number.isInteger(quantity)||quantity<1){skipped++;continue}
+        try{
+          const count=await changeCartQuantity(item.product_id,quantity);
           added+=count;
-        }
-        if(count<quantity)skipped++;
+          if(count<quantity)skipped++;
+        }catch{skipped++}
       }
-      if(added)Shop.cart.save(cart);
       toast(added?`Added ${added} to cart.${skipped?' Some items or quantities could not be added.':''}`:'No items could be added to the cart.',added?'ok':'bad');
     }catch(error){toast(errMsg(error),'bad')}
   });

@@ -8,11 +8,11 @@
    Bump CACHE_VERSION on each deployment to clear old files.
    ===================================================================== */
 
-const CACHE_VERSION = 'v8-commerce-20261125-order-motion';
+const CACHE_VERSION = 'v8-commerce-premium-motion';
 const CACHE_NAME = 'shop-static-' + CACHE_VERSION;
 const SHELL = [
   './', 'index.html', 'products.html', 'cart.html', 'orders.html', 'account.html', 'account.js',
-  'shop.css', 'shop.js', 'supabase.js', 'vendor/supabase-2.110.1.js', 'manifest.json',
+  'shop.css', 'motion.js', 'shop.js', 'supabase.js', 'vendor/supabase-2.110.1.js', 'manifest.json',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/logo.png'
 ];
 

@@ -301,3 +301,35 @@ button,input,select,textarea{font-family:inherit}
 @media (prefers-reduced-motion: reduce) {
   .fz-checkout-overlay[open], .fz-spinner, .fz-checkmark-badge, #fzCheckoutConfirmed { animation: none; }
 }
+
+/* Premium storefront motion */
+@keyframes fc-fade-up { from {opacity:0;transform:translateY(9px)} to {opacity:1;transform:translateY(0)} }
+@keyframes fc-control-in { from {opacity:.55;transform:scale(.94)} to {opacity:1;transform:scale(1)} }
+@keyframes fc-dock-slide { from {transform:translateX(calc(var(--previous-index) * (100% + 4px)))} to {transform:translateX(calc(var(--active-index) * (100% + 4px)))} }
+main { animation:fc-fade-up 280ms ease backwards }
+.motion-card { animation:fc-fade-up 360ms cubic-bezier(.2,.7,.3,1) var(--card-delay,0ms) backwards }
+:is(.btn,.ib,.chip,.hb,.qty button,.dock a,.th button,.x) {
+  touch-action:manipulation;
+  transition:transform 150ms ease,background-color 200ms ease,border-color 200ms ease,color 200ms ease;
+}
+:is(.btn,.ib,.chip,.hb,.qty button,.dock a,.th button,.x):active:not(:disabled) { transform:scale(.94) }
+[data-card-cart] button { touch-action:manipulation }
+[data-card-cart] [role=group] { animation:fc-control-in 150ms ease }
+[data-card-count],.qty span { display:inline-block;font-variant-numeric:tabular-nums }
+.dock:has(.motion-dock-indicator) a.on { background:transparent }
+.motion-dock-indicator {
+  pointer-events:none;position:absolute;top:6px;bottom:calc(6px + env(safe-area-inset-bottom));left:10px;
+  width:calc((100% - 36px)/5);border-radius:12px;background:var(--action);
+  transform:translateX(calc(var(--active-index) * (100% + 4px)));
+  animation:fc-dock-slide 320ms cubic-bezier(.2,.8,.2,1);
+}
+.ov,.ov.open { display:flex;animation:none;transition:opacity 240ms ease }
+.ov:not(.open) { opacity:0;visibility:hidden;pointer-events:none;transition:opacity 240ms ease,visibility 0s 240ms }
+.ov .sh { animation:none;transform:translateY(9px);transition:transform 240ms cubic-bezier(.2,.8,.2,1) }
+.ov.open .sh { transform:none }
+.toast { transition-duration:240ms }
+@media (prefers-reduced-motion:reduce) {
+  main,.motion-card,.motion-dock-indicator,[data-card-cart] [role=group] { animation:none }
+  .ov,.ov.open,.ov:not(.open),.ov .sh,.toast,:is(.btn,.ib,.chip,.hb,.qty button,.dock a,.th button,.x) { transition:none }
+  :is(.btn,.ib,.chip,.hb,.qty button,.dock a,.th button,.x):active:not(:disabled) { transform:none }
+}
