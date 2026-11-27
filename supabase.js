@@ -184,12 +184,21 @@ const Shop = {
   },
 
   // The idempotency key makes a double-tap or retry return the SAME order instead of a second one.
-  _checkoutKey() {
+  _checkoutKey(fingerprint) {
     let key = sessionStorage.getItem('checkout_key');
-    if (!key) {
-      key = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
-      sessionStorage.setItem('checkout_key', key);
+    const previous = sessionStorage.getItem('checkout_fingerprint');
+    if (key && previous && previous !== fingerprint) {
+      if (sessionStorage.getItem('checkout_rejected') !== '1') {
+        throw new Error('Your previous checkout may still have succeeded. Check My Orders, then restore the original cart and coupon to retry safely.');
+      }
+      key = null;
     }
+    if (!key) {
+      key = crypto.randomUUID();
+      sessionStorage.setItem('checkout_key',key);
+    }
+    sessionStorage.setItem('checkout_fingerprint',fingerprint);
+    sessionStorage.removeItem('checkout_rejected');
     return key;
   },
 
@@ -237,15 +246,25 @@ const Shop = {
     if (!session || session.user.is_anonymous) {
       throw Object.assign(new Error('Sign in to place your order.'), { code: 'CHECKOUT_SIGN_IN' });
     }
+    const normalizedCoupon = coupon.trim().toUpperCase();
+    const fingerprint = JSON.stringify([session.user.id,normalizedCoupon,
+      items.map(({product_id,quantity})=>[product_id,quantity]).sort(([a],[b])=>a.localeCompare(b))]);
+    const key = Shop._checkoutKey(fingerprint);
     const { data, error } = await sb.rpc('checkout_v8', {
       p_customer_name: name,
       p_customer_phone: phone,
       p_delivery_address: address || null,
       p_items: items,
-      p_idempotency_key: Shop._checkoutKey(),
-      p_coupon: coupon || null
+      p_idempotency_key: key,
+      p_coupon: normalizedCoupon || null
     });
-    if (error) throw new Error(friendlyOrderError(error));
+    if (error) {
+      // Only known checkout validation failures prove the transaction rolled back.
+      if (error.code === 'P0001' && /^(Coupon|Not enough stock|Invalid |A product is no longer available)/i.test(error.message)) {
+        sessionStorage.setItem('checkout_rejected','1');
+      }
+      throw new Error(friendlyOrderError(error));
+    }
 
     // The server may return an object, a one-row array or a JSON string; accept all.
     let result = data;
@@ -255,7 +274,7 @@ const Shop = {
     const num = result.order_number ?? result.number ?? result.order_no;
     if (num == null) throw new Error('Order confirmation unavailable. Retry with the same cart.');
     result.order_number = num;
-    sessionStorage.removeItem('checkout_key');
+    for (const field of ['checkout_key','checkout_fingerprint','checkout_rejected']) sessionStorage.removeItem(field);
     Shop.cart.clear();
     // Remember the confirmation so orders.html can show it after redirect.
     try { sessionStorage.setItem('last_order', JSON.stringify(result)); } catch { /* ignore */ }

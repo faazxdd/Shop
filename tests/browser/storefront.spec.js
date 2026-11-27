@@ -29,7 +29,7 @@ for(const width of [375,390,768,1440])test(`catalogue, gallery and responsive la
  await page.getByRole('button',{name:'Phone Pro',exact:true}).press('Enter');await expect(page.getByRole('dialog')).toBeVisible();
  await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).not.toBeVisible();
  await page.getByRole('button',{name:'Switch to dark mode'}).click();await expect(page.locator('html')).toHaveAttribute('data-shop-theme','dark');
- await page.getByRole('button',{name:'Add',exact:true}).click();await page.goto('/cart.html');
+ await page.getByRole('button',{name:'Add',exact:true}).click();await expect(page.locator('[data-card-count]').first()).toHaveText('1');await page.goto('/cart.html');
  await expect(page.locator('#co')).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.locator('[name=name]').fill('Test Customer');await page.getByRole('button',{name:'More',exact:true}).click();
  await expect(page.locator('.qty span')).toHaveText('2');
