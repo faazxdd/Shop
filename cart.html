@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-MFIyFMyGoq1dQOzMRwOtCmUTPsLAmc89N1xakRML4i8='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-ocejchsTMNRhKpzEEzmOJ1udHvF41vK8C8SjQ39lluQ='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Your cart</title>
 <meta name="robots" content="noindex">
@@ -50,13 +50,13 @@
   </div>
 </dialog>
 <script src="vendor/supabase-2.110.1.js"></script>
-<script src="supabase.js?v=delivery-details"></script>
-<script src="shop.js?v=fc-brand"></script>
+<script src="supabase.js?v=cart-limit-ten"></script>
+<script src="shop.js?v=cart-limit-ten"></script>
 <script>
 renderSiteHeader('cart');
 const box=$('#cart');let lines=[],renderVersion=0,submitting=false,refreshing=false,draft=null,coupon='',quote=null;
 const lineHtml=l=>{const p=l.product,im=(p.images||[])[0],o=stockOf(p)==='out';
-return `<div class="cl" data-id="${esc(l.product_id)}">${im?`<img src="${esc(im)}" alt="${esc(p.name)}">`:`<div class="ph">${ic('box')}</div>`}<div class="info"><b>${esc(p.name)}</b><span class="small muted">${money(p.selling_price)} each</span>${o?'<div class="small" style="color:var(--bad);font-weight:600">Out of stock. Remove it to continue.</div>':''}<br><button class="rm" data-rm>Remove</button></div><div style="text-align:right"><div class="qty"><button data-q="-1" aria-label="Less">${ic('minus')}</button><span>${l.quantity}</span><button data-q="1" aria-label="More" ${o||l.quantity>=999?'disabled':''}>${ic('plus')}</button></div><div class="price" style="margin-top:6px">${money(l.quantity*Number(p.selling_price))}</div></div></div>`};
+return `<div class="cl" data-id="${esc(l.product_id)}">${im?`<img src="${esc(im)}" alt="${esc(p.name)}">`:`<div class="ph">${ic('box')}</div>`}<div class="info"><b>${esc(p.name)}</b><span class="small muted">${money(p.selling_price)} each</span>${o?'<div class="small" style="color:var(--bad);font-weight:600">Out of stock. Remove it to continue.</div>':''}<br><button class="rm" data-rm>Remove</button></div><div style="text-align:right"><div class="qty"><button data-q="-1" aria-label="Less">${ic('minus')}</button><span>${l.quantity}</span><button data-q="1" aria-label="More" ${o||l.quantity>=Shop.cart.MAX_QUANTITY?'disabled':''}>${ic('plus')}</button></div><div class="price" style="margin-top:6px">${money(l.quantity*Number(p.selling_price))}</div></div></div>`};
 function captureDraft(){const f=$('#co');if(f)draft={...readDelivery(f.elements),name:f.elements.name.value,phone:f.elements.phone.value};}
 async function render(){
 const version=++renderVersion;captureDraft();refreshing=true;if($('#co-btn'))$('#co-btn').disabled=true;

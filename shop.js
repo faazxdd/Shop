@@ -42,7 +42,7 @@ function cardCartButtons(id,quantity,out){
   return `<div role="group" aria-label="Cart quantity" style="display:inline-flex;align-items:center;gap:4px;touch-action:manipulation">
     <button type="button" class="btn sm" style="${style};min-width:32px;padding-inline:5px" data-card-minus="${id}" aria-label="Remove one">−</button>
     <span data-card-count aria-live="polite">${quantity}</span>
-    <button type="button" class="btn sm" style="${style};min-width:32px;padding-inline:5px" data-add="${id}" aria-label="Add one" ${out||quantity>=999?'disabled':''}>+</button>
+    <button type="button" class="btn sm" style="${style};min-width:32px;padding-inline:5px" data-add="${id}" aria-label="Add one" ${out||quantity>=Shop.cart.MAX_QUANTITY?'disabled':''}>+</button>
   </div>`;
 }
 function productCardHtml(p) {
@@ -62,8 +62,8 @@ sheet(`<button class="x" data-close aria-label="Close">${ic('x')}</button><div c
 if(p.variant_group){Shop.products({variantGroup:p.variant_group,limit:100}).then(rows=>{if(!$('#variant-options'))return;$('#variant-options').innerHTML='<label class="field"><span>Choose variant</span><select class="in" id="variant-select">'+rows.map(v=>`<option value="${esc(v.id)}" ${v.id===p.id?'selected':''}>${esc(Object.entries(v.attributes||{}).map(([k,v])=>k+': '+v).join(' / ')||v.name)} · ${money(v.selling_price)}</option>`).join('')+'</select>';$('#variant-select').onchange=e=>openProduct(e.target.value)}).catch(e=>toast(errMsg(e),'bad'))}
 const zoom=$('#pd-img');if(zoom){zoom.tabIndex=0;zoom.setAttribute('role','button');zoom.setAttribute('aria-label','Toggle image zoom');zoom.onclick=()=>zoom.classList.toggle('zoomed');zoom.onkeydown=e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();zoom.click()}}}
 $('#share-product').onclick=()=>shareProduct(p);const sh=$('#sheet');sh.onclick=e=>{const t=e.target.closest('[data-th]');if(t){const old=$('#pd-img');if(old)old.src=t.dataset.th;else{const img=document.createElement('img');img.id='pd-img';img.alt=p.name;img.src=t.dataset.th;$('.pdi .pi',sh).replaceChildren(img)}$$('.th button',sh).forEach(b=>b.classList.toggle('on',b===t))}};
-$('#pq-').onclick=()=>$('#pq').textContent=q=Math.max(1,q-1);$('#pq\\+').onclick=()=>$('#pq').textContent=q=Math.min(99,q+1);
-$('#pq-add').onclick=()=>{Shop.cart.add(p.id,q);closeSheet();toast('Added to cart','ok')}}
+$('#pq-').onclick=()=>$('#pq').textContent=q=Math.max(1,q-1);$('#pq\\+').onclick=()=>$('#pq').textContent=q=Math.min(Math.max(1,Shop.cart.MAX_QUANTITY-cardQuantity(p.id)),q+1);
+$('#pq-add').onclick=()=>{if(cardQuantity(p.id)>=Shop.cart.MAX_QUANTITY){toast('Maximum 10 per product','bad');return}Shop.cart.add(p.id,q);closeSheet();toast('Added to cart','ok')}}
 document.addEventListener('click',e=>{
 const f=e.target.closest('[data-fav]');if(f){e.preventDefault();e.stopPropagation();const id=f.dataset.fav,on=Shop.favs.toggle(id);$$('[data-fav]').forEach(b=>{if(b.dataset.fav===id){b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));b.innerHTML=ic('heart',on)+(b.classList.contains('btn')?(on?'Saved':'Save'):'')}});toast(on?'Saved for later':'Removed from saved');return}
 const minus=e.target.closest('[data-card-minus]');
@@ -90,7 +90,7 @@ function updateCardQuantities(){
     const count=control.querySelector('[data-card-count]');
     if(count&&quantity){
       count.textContent=quantity;
-      control.querySelector('[data-add]').disabled=control.dataset.out==='true'||quantity>=999;
+      control.querySelector('[data-add]').disabled=control.dataset.out==='true'||quantity>=Shop.cart.MAX_QUANTITY;
     }else if(Boolean(count)!==Boolean(quantity)){
       const focused=control.contains(document.activeElement);
       control.innerHTML=cardCartButtons(esc(id),quantity,control.dataset.out==='true');
