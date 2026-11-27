@@ -80,7 +80,7 @@ test('a slow response stays processing and a failed order can retry with the sam
     release();
   }
   await expect(dialog).toBeHidden();
-  await expect(page.getByRole('alert')).toContainText('Order temporarily unavailable');
+  await expect(page.getByRole('alert')).toHaveText('Could not place the order. Please try again.');
   await expect(button).toBeEnabled();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('cart_v1')))).toHaveLength(1);
   await button.click();
