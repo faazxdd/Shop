@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-3Go3Mg18q5Gez78k0yinzz4sd/2k8/OSGBP9Gl6Rp6A='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-4Mts4HeJRIsb2s2xxFQiz23ulwEs1mawnd//rRyeAMY='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Your cart</title>
 <meta name="robots" content="noindex">
@@ -121,9 +121,8 @@ checkoutConfirmed.hidden=true;
 checkoutCheck.hidden=true;
 try {
   checkoutOverlay.showModal();
-  const minimumProcessing=new Promise(resolve=>setTimeout(resolve,1500));
   const confirmedItems=lines.map(({product,quantity})=>({name:product.name,quantity,price:Number(product.selling_price)}));
-  const [order]=await Promise.all([Shop.placeOrder({name,phone,address,coupon}),minimumProcessing]);
+  const order=await Shop.placeOrder({name,phone,address,coupon});
   // placeOrder already clears the cart after the server confirms the order.
   // Start redrawing the cart before showing the dismissible confirmation.
   draft=null;
