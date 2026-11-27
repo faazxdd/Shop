@@ -333,3 +333,9 @@ main { animation:fc-fade-up 280ms ease backwards }
   .ov,.ov.open,.ov:not(.open),.ov .sh,.toast,:is(.btn,.ib,.chip,.hb,.qty button,.dock a,.th button,.x) { transition:none }
   :is(.btn,.ib,.chip,.hb,.qty button,.dock a,.th button,.x):active:not(:disabled) { transform:none }
 }
+
+/* Keep animated and fallback dock selections readable in both themes. */
+.dock a.on { background:var(--action); color:var(--on-action); }
+.dock:has(.motion-dock-indicator) a.on { background:transparent; color:var(--on-action); }
+.dock a.on > span, .dock a.on > svg { color:inherit; }
+.motion-dock-indicator { background:var(--action); }
