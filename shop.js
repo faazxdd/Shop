@@ -36,6 +36,15 @@ async function shareProduct(p){const url=new URL('products.html',location.href);
 
 const stockOf=p=>/out/i.test(p.stock_status||'')?'out':/low/i.test(p.stock_status||'')?'low':'in';
 function cardQuantity(id){return Shop.cart.get().find(line=>line.product_id===id)?.quantity||0}
+function cardCartButtons(id,quantity,out){
+  const style='touch-action:manipulation;background:#fff;color:#142029;border:1px solid #cbd2d8;white-space:nowrap';
+  if(!quantity)return `<button type="button" class="btn sm" style="${style}" data-add="${id}" ${out?'disabled':''}>${ic('plus')}Add</button>`;
+  return `<div role="group" aria-label="Cart quantity" style="display:inline-flex;align-items:center;gap:4px;touch-action:manipulation">
+    <button type="button" class="btn sm" style="${style};min-width:32px;padding-inline:5px" data-card-minus="${id}" aria-label="Remove one">−</button>
+    <span data-card-count aria-live="polite">${quantity}</span>
+    <button type="button" class="btn sm" style="${style};min-width:32px;padding-inline:5px" data-add="${id}" aria-label="Add one" ${out||quantity>=999?'disabled':''}>+</button>
+  </div>`;
+}
 function productCardHtml(p) {
   PC[p.id]=p;
   const stock=stockOf(p),image=(p.images||[])[0],saved=Shop.favs.has(p.id),id=esc(p.id);
@@ -45,7 +54,7 @@ function productCardHtml(p) {
     <button class="hb ${saved?'on':''}" data-fav="${id}" aria-pressed="${saved}" aria-label="Save ${esc(p.name)}">${ic('heart',saved)}</button>
     </div><div class="pm">${esc(p.category_name||'')}</div><h3 class="pt"><button class="product-title-button" data-open="${id}">${esc(p.name)}</button></h3></div>
     <div class="pf"><span class="price">${money(p.selling_price)}${p.compare_at_price>p.selling_price?`<del>${money(p.compare_at_price)}</del><small class="offer">Save ${Math.round((1-p.selling_price/p.compare_at_price)*100)}%</small>`:''}</span>
-    <button class="btn sm" style="touch-action:manipulation;background:#fff;color:#142029;border:1px solid #cbd2d8;white-space:nowrap" data-add="${id}" ${stock==='out'?'disabled':''}>${ic('plus')}<span data-add-label>${cardQuantity(p.id)||'Add'}</span></button></div></article>`;
+    <div data-card-cart="${id}" data-out="${stock==='out'}">${cardCartButtons(id,cardQuantity(p.id),stock==='out')}</div></div></article>`;
 }
 async function openProduct(id){let p=PC[id];if(!p){try{p=await Shop.product(id)}catch(e){return toast(errMsg(e),'bad')}}if(!p)return toast('Product is no longer available','bad');PC[id]=p;rememberProduct(id);
 const im=p.images||[],s=stockOf(p),sv=Shop.favs.has(p.id);let q=1;
@@ -57,6 +66,8 @@ $('#pq-').onclick=()=>$('#pq').textContent=q=Math.max(1,q-1);$('#pq\\+').onclick
 $('#pq-add').onclick=()=>{Shop.cart.add(p.id,q);closeSheet();toast('Added to cart','ok')}}
 document.addEventListener('click',e=>{
 const f=e.target.closest('[data-fav]');if(f){e.preventDefault();e.stopPropagation();const id=f.dataset.fav,on=Shop.favs.toggle(id);$$('[data-fav]').forEach(b=>{if(b.dataset.fav===id){b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));b.innerHTML=ic('heart',on)+(b.classList.contains('btn')?(on?'Saved':'Save'):'')}});toast(on?'Saved for later':'Removed from saved');return}
+const minus=e.target.closest('[data-card-minus]');
+if(minus){e.stopPropagation();const id=minus.dataset.cardMinus;Shop.cart.setQty(id,cardQuantity(id)-1);return}
 const a=e.target.closest('[data-add]');if(a){if(a.disabled||stockOf(PC[a.dataset.add]||{})==='out')return;e.stopPropagation();try{Shop.cart.add(a.dataset.add,1)}catch(error){toast(errMsg(error),'bad')}return}
 const o=e.target.closest('[data-open]');if(o)openProduct(o.dataset.open)});
 
@@ -73,12 +84,18 @@ if(!$('.dock')){const d=document.createElement('nav');d.className='dock';d.setAt
 counts();const toggle=$('#theme-switch');function paintTheme(){const dark=document.documentElement.dataset.shopTheme==='dark';toggle.innerHTML=ic(dark?'sun':'moon');toggle.setAttribute('aria-label',dark?'Switch to light mode':'Switch to dark mode');document.querySelector('meta[name="theme-color"]').content=dark?'#101010':'#ffffff'}toggle.onclick=()=>{const next=document.documentElement.dataset.shopTheme==='dark'?'light':'dark';document.documentElement.dataset.shopTheme=next;try{localStorage.setItem('shop-theme',next)}catch{}paintTheme()};paintTheme()}
 function updateCardQuantities(){
   const quantities=new Map(Shop.cart.get().map(line=>[line.product_id,line.quantity]));
-  for(const button of document.querySelectorAll('[data-add]')){
-    const label=button.querySelector('[data-add-label]');
-    if(!label)continue;
-    const quantity=quantities.get(button.dataset.add)||0;
-    label.textContent=quantity||'Add';
-    button.setAttribute('aria-label',quantity?`Add one more. ${quantity} in cart`:'Add one to cart');
+  for(const control of document.querySelectorAll('[data-card-cart]')){
+    const id=control.dataset.cardCart;
+    const quantity=quantities.get(id)||0;
+    const count=control.querySelector('[data-card-count]');
+    if(count&&quantity){
+      count.textContent=quantity;
+      control.querySelector('[data-add]').disabled=control.dataset.out==='true'||quantity>=999;
+    }else if(Boolean(count)!==Boolean(quantity)){
+      const focused=control.contains(document.activeElement);
+      control.innerHTML=cardCartButtons(esc(id),quantity,control.dataset.out==='true');
+      if(focused)(control.querySelector('[data-add]:not(:disabled)')||control.querySelector('[data-card-minus]'))?.focus({preventScroll:true});
+    }
   }
 }
 window.addEventListener('cart-changed',()=>{counts();updateCardQuantities()});
