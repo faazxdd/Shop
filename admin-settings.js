@@ -7,10 +7,20 @@
   const MB = 1024 * 1024;
   const photoTypes = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
 
+  function verifyCrc(bytes, expected) {
+    let crc = 0xffffffff;
+    for (const byte of bytes) {
+      crc ^= byte;
+      for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+    }
+    if (((crc ^ 0xffffffff) >>> 0) !== expected) throw new Error('ZIP entry checksum mismatch');
+  }
+
   async function readImportZip(file) {
     if (file.size > 50 * MB) throw new Error('ZIP is too large (max 50 MB)');
     const view = new DataView(await file.arrayBuffer());
     const decoder = new TextDecoder();
+    if (view.byteLength < 22) throw new Error('Invalid ZIP file');
     let end = view.byteLength - 22;
     const earliest = Math.max(0, end - 65535);
     while (end >= earliest && (view.getUint32(end, true) !== 0x06054b50 ||
@@ -35,6 +45,7 @@
         const entry = {
           path,
           method: view.getUint16(offset + 10, true),
+          crc: view.getUint32(offset + 16, true),
           compressed: view.getUint32(offset + 20, true),
           size: view.getUint32(offset + 24, true),
           local: view.getUint32(offset + 42, true),
@@ -65,7 +76,7 @@
       const start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
       if (start + compressed > end || (method === 0 && compressed !== size)) throw new Error('Invalid ZIP file size');
       const blob = new Blob([new Uint8Array(view.buffer, start, compressed)]);
-      if (method === 0) return blob;
+      if (method === 0) { verifyCrc(new Uint8Array(view.buffer, start, compressed), entry.crc); return blob; }
       let stream;
       try { stream = new DecompressionStream('deflate-raw'); }
       catch { throw new Error('ZIP import needs a newer browser. Try updating Safari or using Chrome.'); }
@@ -84,6 +95,7 @@
         await reader.cancel();
       }
       if (written !== size) throw new Error('Incomplete ZIP entry');
+      verifyCrc(bytes, entry.crc);
       return new Blob([bytes]);
     }
 
