@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-xY991PfK8b9jd8I8Y9TXLQKu/z2I8YM6le1wQ6pR7XA='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-tEONyw7DX6fxXDSPMmOLcgsFgTzcA0CSedgRZSXm+tM='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Your cart</title>
 <meta name="robots" content="noindex">
@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <script>try{document.documentElement.dataset.shopTheme=localStorage.getItem("shop-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}</script>
-<link rel="stylesheet" href="shop.css?v=mobile3">
+<link rel="stylesheet" href="shop.css?v=checkout-overlay">
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to content</a>
@@ -19,11 +19,28 @@
 <div id="util"></div>
 <header id="site-header"></header>
 <main id="main-content" class="main" style="gap:18px">
-<div class="page-h"><div class="sub">Step 1 of 2</div><h1>Your cart</h1></div>
+<div class="page-h"><div class="sub">Step 1 of 2</div><h1 tabindex="-1">Your cart</h1></div>
 <div id="cart"><div class="skel" style="min-height:160px"></div></div>
 </main>
 <footer id="site-footer"></footer>
 </div>
+<dialog id="fzCheckoutOverlay" class="fz-checkout-overlay" aria-labelledby="fzCheckoutTitle">
+  <div class="fz-checkout-card">
+    <div id="fzCheckoutProcessing">
+      <div class="fz-spinner" aria-hidden="true"></div>
+    </div>
+    <div id="fzCheckoutCheck" class="fz-checkmark-badge" aria-hidden="true" hidden>✓</div>
+    <h2 id="fzCheckoutTitle" tabindex="-1" autofocus aria-live="polite">Processing your order…</h2>
+    <div id="fzCheckoutConfirmed" hidden>
+      <p class="muted">Your order has been sent to the shop.</p>
+      <p id="fzCheckoutSummary"></p>
+      <div class="fz-checkout-actions">
+        <a class="btn" href="orders.html">View my orders</a>
+        <button type="button" class="btn dark" id="fzCheckoutDoneBtn">Continue</button>
+      </div>
+    </div>
+  </div>
+</dialog>
 <script src="vendor/supabase-2.110.1.js"></script>
 <script src="supabase.js?v=delivery-details"></script>
 <script src="shop.js?v=brand2"></script>
@@ -68,8 +85,8 @@ box.innerHTML=`<div class="cart"><div>${cartItems}</div>
 <label class="field"><span>Phone number</span><input class="in" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" value="${esc(c.phone||'')}" placeholder="+971 50 123 4567"></label>
 <h2 class="checkout-title">Delivery details</h2>
 ${deliveryInputs(c)}
-<div class="err" id="co-err" hidden></div>
-<button class="btn dark wide" type="submit" id="co-btn" ${blocked?'disabled':''}><span class="order-label">Place order</span><span class="delivery-scene" aria-hidden="true"><i class="parcel"></i><i class="delivery-van"><b></b></i></span></button></form></div>`}
+<div class="err" id="co-err" role="alert" hidden></div>
+<button class="btn dark wide" type="submit" id="co-btn" ${blocked?'disabled':''}>Place order</button></form></div>`}
 box.addEventListener('click',e=>{if(submitting)return;if(e.target.closest('#apply-coupon')){coupon=$('#coupon').value.trim().toUpperCase();render();return}if(e.target.closest('#retry-cart')){render();return}if(e.target.closest('#remove-missing')){Shop.cart.save(Shop.cart.get().filter(i=>lines.some(l=>l.product_id===i.product_id)));render();return}const row=e.target.closest('.cl');if(!row)return;const id=row.dataset.id,cur=(Shop.cart.get().find(i=>i.product_id===id)||{}).quantity||0;
 if(e.target.closest('[data-rm]')){Shop.cart.remove(id);render()}
 const q=e.target.closest('[data-q]');if(q&&!q.disabled){Shop.cart.setQty(id,cur+Number(q.dataset.q));render()}});
@@ -79,27 +96,56 @@ if(phone.replace(/\D/g,'').length<6){err.textContent='Please enter a valid phone
 let address;
 try { address=deliveryAddress(readDelivery(f)); }
 catch(error) { err.textContent=error.message;err.hidden=false;return; }
-submitting=true;const controls=[...box.querySelectorAll('button,input')].filter(el=>!el.disabled&&el.id!=='co-btn');controls.forEach(el=>el.disabled=true);
-const button=$('#co-btn'),label=button.querySelector('.order-label');
-const motion=!matchMedia('(prefers-reduced-motion: reduce)').matches;
-const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const button=$('#co-btn');
+submitting=true;
 button.disabled=true;
-button.classList.add('loading-parcel');
-label.textContent='Placing order…';
+const controls=[...box.querySelectorAll('button,input,select,textarea')].filter(el=>!el.disabled);
+controls.forEach(el=>el.disabled=true);
+
+checkoutTitle.textContent='Processing your order…';
+checkoutProcessing.hidden=false;
+checkoutConfirmed.hidden=true;
+checkoutCheck.hidden=true;
 try {
-  await Promise.all([Shop.placeOrder({name,phone,address,coupon}),pause(motion?500:0)]);
-  button.classList.add('order-accepted');
-  label.textContent='Order placed';
-  if(motion) await pause(370);
-  location.href='orders.html#placed';
+  checkoutOverlay.showModal();
+  const minimumProcessing=new Promise(resolve=>setTimeout(resolve,1500));
+  const [order]=await Promise.all([Shop.placeOrder({name,phone,address,coupon}),minimumProcessing]);
+  // placeOrder already clears the cart after the server confirms the order.
+  // Start redrawing the cart before showing the dismissible confirmation.
+  draft=null;
+  coupon='';
+  box.replaceChildren();
+  void render();
+  checkoutSummary.textContent=`Order #${order.order_number} · Total ${money(order.total)}`;
+  checkoutProcessing.hidden=true;
+  checkoutCheck.hidden=false;
+  checkoutTitle.textContent='Order Confirmed';
+  checkoutConfirmed.hidden=false;
+  checkoutDone.focus();
 } catch(ex) {
+  checkoutOverlay.close();
   if(ex.code==='CHECKOUT_SIGN_IN'){await render();return}
   err.textContent=errMsg(ex);err.hidden=false;
 } finally {
-  submitting=false;button.disabled=false;
-  button.classList.remove('loading-parcel','order-accepted');
-  label.textContent='Place order';controls.forEach(el=>el.disabled=false);
+  submitting=false;
+  if(button.isConnected) {
+    button.disabled=false;
+    controls.forEach(el=>el.disabled=false);
+    if(!checkoutOverlay.open)button.focus();
+  }
 }
+});
+const checkoutOverlay=$('#fzCheckoutOverlay');
+const checkoutTitle=$('#fzCheckoutTitle');
+const checkoutProcessing=$('#fzCheckoutProcessing');
+const checkoutConfirmed=$('#fzCheckoutConfirmed');
+const checkoutCheck=$('#fzCheckoutCheck');
+const checkoutSummary=$('#fzCheckoutSummary');
+const checkoutDone=$('#fzCheckoutDoneBtn');
+checkoutOverlay.addEventListener('cancel',event=>{if(submitting)event.preventDefault()});
+checkoutDone.addEventListener('click',()=>checkoutOverlay.close());
+checkoutOverlay.addEventListener('close',()=>{
+  if(!checkoutConfirmed.hidden&&!checkoutOverlay.open)$('#main-content h1').focus();
 });
 window.addEventListener('pageshow',e=>{if(e.persisted&&!submitting)render()});
 sb.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'&&!submitting)setTimeout(()=>{box.replaceChildren();draft=null;render()},0)});
