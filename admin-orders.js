@@ -450,7 +450,7 @@
         try {
           const products = throwIfError(await sb.from('products').select('id,images').in('id', productIds));
           const images = new Map(products.map(product => [product.id, product.images?.[0]]));
-          for (const slot of $('[data-order-photo]', body)) {
+          for (const slot of body.querySelectorAll('[data-order-photo]')) {
             const item = items[Number(slot.dataset.orderPhoto)];
             const source = images.get(item.product_id);
             if (!source) continue;
