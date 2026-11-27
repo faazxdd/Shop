@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-5Rnm5VGmGSbf5XT0oYYUl03gq1W5QM5xK0z3VJWBmcQ='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-VhWmd/+Q8F099eu+UNbZ0CXHAQ4K41weWG43XsFZOvQ='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>My orders</title>
 <meta name="robots" content="noindex">
@@ -34,8 +34,8 @@
 <footer id="site-footer"></footer>
 </div>
 <script src="vendor/supabase-2.110.1.js"></script>
-<script src="supabase.js?v=collections"></script>
-<script src="shop.js?v=fc-brand"></script>
+<script src="supabase.js?v=cart-limit-ten"></script>
+<script src="shop.js?v=cart-limit-ten"></script>
 <script>
 const justPlaced=location.hash==='#placed';
 renderSiteHeader('orders');
@@ -71,7 +71,7 @@ if(reorder){
         const quantity=Number(item.quantity);
         const line=cart.find(entry=>entry.product_id===item.product_id);
         if(!available.has(item.product_id)||!Number.isInteger(quantity)||quantity<1||(!line&&cart.length>=50)){skipped++;continue}
-        const count=Math.min(quantity,999-(line?.quantity||0));
+        const count=Math.min(quantity,Shop.cart.MAX_QUANTITY-(line?.quantity||0));
         if(count){
           if(line)line.quantity+=count;
           else cart.push({product_id:item.product_id,quantity:count});
