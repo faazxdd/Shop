@@ -53,7 +53,7 @@ function motionDock(dock) {
 
 const cartChanges = new Map();
 const stockCeilings = new Map();
-const cartLimit = id => Math.min(Shop.cart.MAX_QUANTITY,stockCeilings.get(id) ?? Infinity);
+const cartLimit = id => Math.min(Shop.cart.MAX_QUANTITY,stockCeilings.get(id)?.quantity ?? Infinity);
 
 // The public catalogue exposes stock status, not the available count. Use the
 // existing read-only quote endpoint for each increase before saving locally.
@@ -68,7 +68,15 @@ function changeCartQuantity(id, delta) {
         await Shop.quote('', [{product_id:id,quantity:next}]);
       } catch (error) {
         if (/not enough stock/i.test(errMsg(error))) {
-          if (delta === 1) stockCeilings.set(id,quantity);
+          if (delta === 1) {
+            const ceiling={quantity};
+            stockCeilings.set(id,ceiling);
+            setTimeout(()=>{
+              if(stockCeilings.get(id)!==ceiling)return;
+              stockCeilings.delete(id);
+              window.dispatchEvent(new Event('cart-stock-limit'));
+            },60000);
+          }
           window.dispatchEvent(new Event('cart-stock-limit'));
         }
         throw error;

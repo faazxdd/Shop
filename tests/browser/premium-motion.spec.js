@@ -84,3 +84,17 @@ test('customer pages, theme, and dialog focus remain usable',async({page})=>{
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+test('product sheet tracks the remaining cart quantity',async({page})=>{
+  await mock(page,50);
+  await page.addInitScript(id=>localStorage.setItem('cart_v1',JSON.stringify([{product_id:id,quantity:10}])),first);
+  await page.goto('/products.html');
+  await page.getByRole('button',{name:'Test product 0',exact:true}).click();
+  const sheet=page.getByRole('dialog');
+  await expect(sheet.getByRole('button',{name:'Add to cart'})).toBeDisabled();
+  await expect(sheet.locator('#pq')).toHaveText('0');
+  await page.evaluate(id=>Shop.cart.setQty(id,9),first);
+  await expect(sheet.getByRole('button',{name:'Add to cart'})).toBeEnabled();
+  await expect(sheet.locator('#pq')).toHaveText('1');
+  await expect(sheet.getByRole('button',{name:'More'})).toBeDisabled();
+});

@@ -21,9 +21,9 @@ const ic=(n,f)=>`<svg class="ic" viewBox="0 0 24 24" fill="${f?'currentColor':'n
 function fmtDate(v){const d=new Date(v);return isNaN(d)?'':d.toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}
 async function withBusy(btn,fn){if(btn.disabled)return;btn.disabled=true;btn.classList.add('busy');try{return await fn()}finally{btn.disabled=false;btn.classList.remove('busy')}}
 let _tt;function toast(m,t){let e=$('#toast');if(!e){e=document.createElement('div');e.id='toast';e.setAttribute('role','status');document.body.append(e)}e.className='toast '+(t||'');e.textContent=m;clearTimeout(_tt);requestAnimationFrame(()=>e.classList.add('show'));_tt=setTimeout(()=>e.classList.remove('show'),2200)}
-let _dlg, _returnFocus;
-function sheet(html){_returnFocus=document.activeElement;let o=$('#sheet');if(!o){o=document.createElement('div');o.id='sheet';o.className='ov';o.addEventListener('click',e=>{if(e.target===o||e.target.closest('[data-close]'))closeSheet()});document.body.append(o)}o.innerHTML=`<div class="sh" role="dialog" aria-modal="true" aria-label="Product details or confirmation" tabindex="-1">${html}</div>`;o.inert=false;o.setAttribute('aria-hidden','false');o.getBoundingClientRect();o.classList.add('open');document.body.classList.add('lock');o.querySelector('.sh').focus()}
-function closeSheet(){const o=$('#sheet');if(o){o.classList.remove('open');o.inert=true;o.setAttribute('aria-hidden','true')}document.body.classList.remove('lock');_returnFocus?.focus();if(_dlg){const d=_dlg;_dlg=null;d(false)}}
+let _dlg, _returnFocus, syncProductQuantity;
+function sheet(html){syncProductQuantity=null;_returnFocus=document.activeElement;let o=$('#sheet');if(!o){o=document.createElement('div');o.id='sheet';o.className='ov';o.addEventListener('click',e=>{if(e.target===o||e.target.closest('[data-close]'))closeSheet()});document.body.append(o)}o.innerHTML=`<div class="sh" role="dialog" aria-modal="true" aria-label="Product details or confirmation" tabindex="-1">${html}</div>`;o.inert=false;o.setAttribute('aria-hidden','false');o.getBoundingClientRect();o.classList.add('open');document.body.classList.add('lock');o.querySelector('.sh').focus()}
+function closeSheet(){syncProductQuantity=null;const o=$('#sheet');if(o){o.classList.remove('open');o.inert=true;o.setAttribute('aria-hidden','true')}document.body.classList.remove('lock');_returnFocus?.focus();if(_dlg){const d=_dlg;_dlg=null;d(false)}}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet();if(e.key==='Tab'&&$('#sheet.open')){const a=$$('#sheet button:not(:disabled),#sheet a[href],#sheet select,#sheet input');const first=a[0],last=a.at(-1);if(e.shiftKey&&(document.activeElement===first||document.activeElement.classList.contains('sh'))){e.preventDefault();last?.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}}});
 function confirmDialog(msg,ok='Confirm'){return new Promise(res=>{_dlg=res;sheet(`<button class="x" data-close aria-label="Close">${ic('x')}</button><p class="dm">${esc(msg)}</p><div class="dr"><button class="btn" data-close>Cancel</button><button class="btn dark" data-ok>${esc(ok)}</button></div>`);$('#sheet [data-ok]').onclick=()=>{_dlg=null;closeSheet();res(true)}})}
 const emptyHtml=(i,t,p,b)=>`<div class="empty"><div class="big">${ic(i)}</div><h2>${esc(t)}</h2>${p?`<p>${p}</p>`:''}${b||''}</div>`;
@@ -58,29 +58,40 @@ function productCardHtml(p) {
 }
 async function openProduct(id){let p=PC[id];if(!p){try{p=await Shop.product(id)}catch(e){return toast(errMsg(e),'bad')}}if(!p)return toast('Product is no longer available','bad');PC[id]=p;rememberProduct(id);
 const im=p.images||[],s=stockOf(p),sv=Shop.favs.has(p.id);let q=1;
-sheet(`<button class="x" data-close aria-label="Close">${ic('x')}</button><div class="pd"><div class="pdi"><div class="pi">${im[0]?`<img id="pd-img" src="${esc(im[0])}" alt="${esc(p.name)}">`:ic('box')}</div>${im.length>1?`<div class="th">${im.map((u,i)=>`<button class="${i?'':'on'}" data-th="${esc(u)}" aria-label="Image ${i+1}"><img src="${esc(u)}" alt=""></button>`).join('')}</div>`:''}</div><div class="pdt"><div class="pm">${esc(p.category_name||'')}</div><h2>${esc(p.name)}</h2><div class="big">${money(p.selling_price)}${p.compare_at_price>p.selling_price?` <del class="small muted">${money(p.compare_at_price)}</del>`:''}</div><div id="variant-options"></div><div><span class="st ${s}">${s==='out'?'Out of stock':s==='low'?'Low stock':'In stock'}</span></div>${p.description?`<p class="muted">${esc(p.description)}</p>`:''}<button class="btn" id="share-product" type="button">Share product</button><div class="row" style="align-items:center"><div class="qty"><button id="pq-" aria-label="Less">${ic('minus')}</button><span id="pq">1</span><button id="pq+" aria-label="More">${ic('plus')}</button></div><button class="btn dark" id="pq-add" ${s==='out'?'disabled':''}>${ic('bag')}Add to cart</button><button class="btn" data-fav="${esc(p.id)}">${ic('heart',sv)}${sv?'Saved':'Save'}</button></div></div></div>`);
+sheet(`<button class="x" data-close aria-label="Close">${ic('x')}</button><div class="pd"><div class="pdi"><div class="pi">${im[0]?`<img id="pd-img" src="${esc(im[0])}" alt="${esc(p.name)}">`:ic('box')}</div>${im.length>1?`<div class="th">${im.map((u,i)=>`<button class="${i?'':'on'}" data-th="${esc(u)}" aria-label="Image ${i+1}"><img src="${esc(u)}" alt=""></button>`).join('')}</div>`:''}</div><div class="pdt"><div class="pm">${esc(p.category_name||'')}</div><h2>${esc(p.name)}</h2><div class="big">${money(p.selling_price)}${p.compare_at_price>p.selling_price?` <del class="small muted">${money(p.compare_at_price)}</del>`:''}</div><div id="variant-options"></div><div><span class="st ${s}">${s==='out'?'Out of stock':s==='low'?'Low stock':'In stock'}</span></div>${p.description?`<p class="muted">${esc(p.description)}</p>`:''}<button class="btn" id="share-product" type="button">Share product</button><div class="row" style="align-items:center"><div class="qty"><button id="pq-" aria-label="Less">${ic('minus')}</button><span id="pq">1</span><button id="pq+" aria-label="More">${ic('plus')}</button></div><button class="btn dark" id="pq-add" ${s==='out'||cartLimit(p.id)<=cardQuantity(p.id)?'disabled':''}>${ic('bag')}Add to cart</button><button class="btn" data-fav="${esc(p.id)}">${ic('heart',sv)}${sv?'Saved':'Save'}</button></div></div></div>`);
 if(p.variant_group){Shop.products({variantGroup:p.variant_group,limit:100}).then(rows=>{if(!$('#variant-options'))return;$('#variant-options').innerHTML='<label class="field"><span>Choose variant</span><select class="in" id="variant-select">'+rows.map(v=>`<option value="${esc(v.id)}" ${v.id===p.id?'selected':''}>${esc(Object.entries(v.attributes||{}).map(([k,v])=>k+': '+v).join(' / ')||v.name)} · ${money(v.selling_price)}</option>`).join('')+'</select>';$('#variant-select').onchange=e=>openProduct(e.target.value)}).catch(e=>toast(errMsg(e),'bad'))}
 const zoom=$('#pd-img');if(zoom){zoom.tabIndex=0;zoom.setAttribute('role','button');zoom.setAttribute('aria-label','Toggle image zoom');zoom.onclick=()=>zoom.classList.toggle('zoomed');zoom.onkeydown=e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();zoom.click()}}}
 $('#share-product').onclick=()=>shareProduct(p);const sh=$('#sheet');sh.onclick=e=>{const t=e.target.closest('[data-th]');if(t){const old=$('#pd-img');if(old)old.src=t.dataset.th;else{const img=document.createElement('img');img.id='pd-img';img.alt=p.name;img.src=t.dataset.th;$('.pdi .pi',sh).replaceChildren(img)}$$('.th button',sh).forEach(b=>b.classList.toggle('on',b===t))}};
 const quantityLabel=$('#pq');
-const updateQuantity=delta=>{
-  q=Math.max(1,Math.min(Math.max(1,cartLimit(p.id)-cardQuantity(p.id)),q+delta));
+const minusButton=$('#pq-');
+const plusButton=document.getElementById('pq+');
+const add=$('#pq-add');
+const sync=delta=>{
+  const remaining=s==='out'?0:Math.max(0,cartLimit(p.id)-cardQuantity(p.id));
+  q=Math.min(remaining,Math.max(1,q+delta));
   if(quantityLabel.textContent!==String(q)){
     quantityLabel.textContent=q;
     motionPulse(quantityLabel);
   }
+  minusButton.disabled=q<=1;
+  plusButton.disabled=q>=remaining;
+  add.disabled=!remaining||add.classList.contains('busy');
 };
-$('#pq-').onclick=()=>updateQuantity(-1);
-$('#pq\\+').onclick=()=>updateQuantity(1);
-const add=$('#pq-add');
-add.onclick=()=>withBusy(add,async()=>{
-  try{
-    const changed=await changeCartQuantity(p.id,q);
-    if(changed&&add.isConnected&&$('#sheet.open'))closeSheet();
-    if(changed)toast('Added to cart','ok');
-    else toast('Maximum quantity reached','bad');
-  }catch(error){toast(errMsg(error),'bad')}
-})}
+syncProductQuantity=()=>sync(0);
+minusButton.onclick=()=>sync(-1);
+plusButton.onclick=()=>sync(1);
+sync(0);
+add.onclick=async()=>{
+  await withBusy(add,async()=>{
+    try{
+      const changed=await changeCartQuantity(p.id,q);
+      if(changed&&add.isConnected&&$('#sheet.open'))closeSheet();
+      if(changed)toast('Added to cart','ok');
+      else toast('Maximum quantity reached','bad');
+    }catch(error){toast(errMsg(error),'bad')}
+  });
+  if(add.isConnected)sync(0);
+}}
 document.addEventListener('click',e=>{
 const f=e.target.closest('[data-fav]');if(f){e.preventDefault();e.stopPropagation();const id=f.dataset.fav,on=Shop.favs.toggle(id);$$('[data-fav]').forEach(b=>{if(b.dataset.fav===id){b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));b.innerHTML=ic('heart',on)+(b.classList.contains('btn')?(on?'Saved':'Save'):'')}});motionPulse(f.querySelector('svg'));toast(on?'Saved for later':'Removed from saved');return}
 const minus=e.target.closest('[data-card-minus]');
@@ -100,6 +111,7 @@ $('#site-footer').innerHTML=`<b data-biz>FC Cart</b><a href="products.html">Prod
 if(!$('.dock')){const d=document.createElement('nav');d.className='dock';d.setAttribute('aria-label','Quick navigation');d.innerHTML=NAV.map(n=>`<a href="${n[1]}" class="${n[0]===active?'on':''}">${ic(n[3])}<span>${n[2].replace('My orders','Orders')}</span>${n[0]==='cart'?'<i class="cnt" data-cartcount></i>':''}</a>`).join('');document.body.append(d);motionDock(d)}
 counts();const toggle=$('#theme-switch');function paintTheme(){const dark=document.documentElement.dataset.shopTheme==='dark';toggle.innerHTML=ic(dark?'sun':'moon');toggle.setAttribute('aria-label',dark?'Switch to light mode':'Switch to dark mode');document.querySelector('meta[name="theme-color"]').content=dark?'#101010':'#ffffff'}toggle.onclick=()=>{const next=document.documentElement.dataset.shopTheme==='dark'?'light':'dark';document.documentElement.dataset.shopTheme=next;try{localStorage.setItem('shop-theme',next)}catch{}paintTheme()};paintTheme()}
 function updateCardQuantities(){
+  syncProductQuantity?.();
   const quantities=new Map(Shop.cart.get().map(line=>[line.product_id,line.quantity]));
   for(const control of document.querySelectorAll('[data-card-cart]')){
     const id=control.dataset.cardCart;
