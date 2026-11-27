@@ -428,7 +428,7 @@
       <h3 class="mt">Items</h3>
       <div class="table-wrap"><table>
         <thead><tr><th>Product</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Total</th></tr></thead>
-        <tbody>${items.map(i => `<tr><td>${esc(i.product_name)}</td><td class="num">${i.quantity}</td><td class="num">${money(i.unit_price)}</td><td class="num">${money(i.line_total)}</td></tr>`).join('')}</tbody>
+        <tbody>${items.map((i, index) => `<tr><td><span data-order-photo="${index}"></span>${esc(i.product_name)}</td><td class="num">${i.quantity}</td><td class="num">${money(i.unit_price)}</td><td class="num">${money(i.line_total)}</td></tr>`).join('')}</tbody>
       </table></div>
       <div class="summary-row"><span>Subtotal</span><span>${money(o.subtotal??items.reduce((n,i)=>n+Number(i.line_total),0))}</span></div><div class="summary-row"><span>Discount</span><span>−${money(o.discount_total||0)}</span></div><div class="summary-row"><span>Delivery</span><span>${money(o.delivery_charge||0)}</span></div><div class="summary-row summary-total"><span>Total</span><span>${money(o.total)}</span></div>
 
@@ -443,6 +443,41 @@
         <p class="help">Stock stays reserved while an order is open. Completing deducts it; rejecting or cancelling releases it.</p>`
         : '<p class="help mt">This order is closed.</p>'}
     `);
+
+    const productIds = [...new Set(items.map(item => item.product_id).filter(Boolean))];
+    if (productIds.length) {
+      void (async () => {
+        try {
+          const products = throwIfError(await sb.from('products').select('id,images').in('id', productIds));
+          const images = new Map(products.map(product => [product.id, product.images?.[0]]));
+          for (const slot of $('[data-order-photo]', body)) {
+            const item = items[Number(slot.dataset.orderPhoto)];
+            const source = images.get(item.product_id);
+            if (!source) continue;
+            const url = new URL(source, location.href);
+            if (!['http:', 'https:'].includes(url.protocol)) continue;
+            const link = document.createElement('a');
+            link.href = url.href;
+            link.target = '_blank';
+            link.rel = 'noopener';
+            link.style.display = 'block';
+            link.style.width = '44px';
+            link.setAttribute('aria-label', 'View photo of ' + item.product_name);
+            const photo = document.createElement('img');
+            photo.alt = '';
+            photo.width = 44;
+            photo.height = 44;
+            photo.style.cssText = 'display:block;object-fit:contain;border-radius:6px;margin-bottom:4px';
+            photo.addEventListener('error', () => link.remove(), {once:true});
+            link.append(photo);
+            slot.append(link);
+            photo.src = url.href;
+          }
+        } catch (error) {
+          console.warn('Could not load order item photos', error);
+        }
+      })();
+    }
 
     const documentButtons = $$('[data-print], [data-preview]', body);
     for (const button of documentButtons) button.disabled = true;
