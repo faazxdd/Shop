@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-DCSKegnrihK23oC33br4u0jy13zkU3kf7fNj+GU8+sk='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-hkF1SZmVuu6/dPQwDOOXLfCWczv6KDU57CuLhg+DfQQ='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>FZ Cart</title>
 <meta name="description" content="Browse our products and place your order online.">
@@ -26,6 +26,7 @@
 <section class="shop-intro"><h1>FZ Cart</h1><form id="sf" class="search" role="search"><input class="in" id="q" type="search" placeholder="Search products" aria-label="Search products" maxlength="80"><button class="btn dark" type="submit">Search</button></form></section>
 <section id="saved-sec" hidden aria-labelledby="saved-title"><div class="sh-head"><div><h2 id="saved-title">Saved by you</h2></div><a href="products.html?saved=1">See all</a></div><div class="hs" id="saved"></div></section>
 <section id="cat-sec" aria-labelledby="cat-title"><div class="sh-head"><div><h2 id="cat-title">Shop by category</h2></div></div><div class="chips" id="categories" aria-live="polite"></div></section>
+<div id="category-sections"></div>
 <section aria-labelledby="latest-title"><div class="sh-head"><div><h2 id="latest-title">Products</h2></div><a href="products.html">View all products</a></div>
 <div class="grid" id="products" aria-live="polite"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div></section>
 
@@ -41,11 +42,35 @@ renderSiteHeader('home');
 const grid=$('#products');
 $('#sf').addEventListener('submit',e=>{e.preventDefault();const q=$('#q').value.trim();location.href='products.html'+(q?'?q='+encodeURIComponent(q):'')});
 async function loadSaved(){const ids=Shop.favs.get();if(!ids.length){$('#saved-sec').hidden=true;$('#saved').innerHTML='';return;}try{const rows=await Shop.products({ids:ids.slice(0,12),limit:12});if(!rows.length){$('#saved-sec').hidden=true;$('#saved').innerHTML='';return;}$('#saved').innerHTML=rows.map(productCardHtml).join('');$('#saved-sec').hidden=false}catch(e){console.error(e)}}
+async function loadCategorySections(categories){
+  const sections = categories.map(category => {
+    const section = document.createElement('section');
+    const headingId = 'category-' + category.id;
+    const href = 'products.html?cat=' + encodeURIComponent(category.id);
+    section.setAttribute('aria-labelledby', headingId);
+    section.innerHTML = `<div class="sh-head"><h2 id="${esc(headingId)}">${esc(category.name)}</h2><a href="${href}">View all</a></div><div class="grid"></div>`;
+    return {category, section};
+  });
+  $('#category-sections').replaceChildren(...sections.map(({section}) => section));
+  for (let offset = 0; offset < sections.length; offset += 4) {
+    await Promise.all(sections.slice(offset, offset + 4).map(async ({category, section}) => {
+      const preview = section.querySelector('.grid');
+      try {
+        const rows = await Shop.products({categoryId: category.id, limit: 4});
+        if (rows.length) preview.innerHTML = rows.map(productCardHtml).join('');
+        else preview.remove();
+      } catch (error) {
+        console.error(error);
+        preview.remove();
+      }
+    }));
+  }
+}
 async function load(){try{const s=await applyBusinessSettings();document.title="FZ Cart";
 const [cats,products]=await Promise.all([Shop.categories(),Shop.products({limit:12})]);
 if(cats.length)$('#categories').innerHTML=cats.map(c=>`<a class="chip" href="products.html?cat=${encodeURIComponent(c.id)}">${esc(c.name)}</a>`).join('');else $('#cat-sec').hidden=true;
 grid.innerHTML=products.length?products.map(productCardHtml).join(''):emptyHtml('box','No products yet','Check back soon.');
-loadSaved();loadRecent()}catch(err){console.error(err);grid.innerHTML=emptyHtml('alert','Could not load products','Refresh the page to try again.');$('#cat-sec').hidden=true}}
+loadCategorySections(cats);loadSaved();loadRecent()}catch(err){console.error(err);grid.innerHTML=emptyHtml('alert','Could not load products','Refresh the page to try again.');$('#cat-sec').hidden=true}}
 window.addEventListener('favs-changed',loadSaved);
 async function loadRecent(){const ids=recentIds();const sec=$('#recent-sec');if(!ids.length){sec.hidden=true;return}try{const rows=await Shop.products({ids,limit:8});const ordered=ids.map(id=>rows.find(p=>p.id===id)).filter(Boolean);$('#recent').innerHTML=ordered.map(productCardHtml).join('');sec.hidden=!ordered.length}catch(e){console.error(e)}}
 $('#clear-recent').onclick=()=>{try{localStorage.removeItem('fz_recent')}catch{}loadRecent()};window.addEventListener('recent-changed',loadRecent);load();
