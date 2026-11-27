@@ -27,12 +27,12 @@ async function renderAccount() {
  try {
  const session=await Auth.getSession();
  if(session && !session.user.is_anonymous && !recovery && returnToCheckout())return;
- const profile=await Customer.profile();
- if(profile&&recovery){
+ if(session?.user && !session.user.is_anonymous && recovery){
  box.innerHTML='<form id="reset-password" class="card auth-card"><h1>Choose a new password</h1><label class="field">New password<input class="in" name="password" type="password" minlength="8" autocomplete="new-password" required></label><button class="btn dark">Save password</button></form>';
  $('#reset-password').onsubmit=e=>{e.preventDefault();withBusy(e.submitter,async()=>{try{throwIfError(await sb.auth.updateUser({password:e.target.elements.password.value}));recovery=false;history.replaceState(null,'',location.pathname);toast('Password updated');await renderAccount()}catch(e){toast(errMsg(e),'bad')}})};
  return;
  }
+ const profile=await Customer.profile();
  if(profile){
   const orders=await Customer.orders(profile.id);
   box.innerHTML=`<h1>My account</h1><form class="card mt" id="profile"><label class="field"><span>Full name</span><input class="in" name="full_name" required maxlength="100" value="${esc(profile.full_name)}"></label><button class="btn dark">Save profile</button><button class="btn" type="button" id="logout">Sign out</button></form><form class="card mt" id="delivery-profile"><h2>Delivery details</h2><p class="help">Saved to your account and filled in at checkout.</p><label class="field"><span>Delivery phone (optional)</span><input class="in" name="phone" type="tel" autocomplete="tel" maxlength="20" value="${esc(session?.user.user_metadata?.delivery?.phone || '')}"></label>${deliveryInputs(session?.user.user_metadata?.delivery)}<button class="btn dark">Save delivery details</button></form><h2 class="mt">Order history</h2><p class="help">Orders placed while signed in. Earlier guest orders remain in My orders.</p>${orders.map(o=>`<article class="card mt"><div class="between"><strong>#${esc(o.order_number)}</strong><span>${money(o.total)}</span></div><p>${esc(o.status.replaceAll('_',' '))} ${esc(o.fulfillment_step||'')}</p><p class="muted">${esc(fmtDate(o.created_at))}</p>${o.order_items.map(i=>`<p>${esc(i.product_name)} × ${i.quantity}</p>`).join('')}</article>`).join('')||'<p class="empty">No account orders yet.</p>'}`;
