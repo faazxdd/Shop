@@ -40,8 +40,8 @@
 <footer id="site-footer"></footer>
 </div>
 <script src="vendor/supabase-2.110.1.js"></script>
-<script src="supabase.js?v=collections"></script>
-<script src="shop.js?v=fc-brand"></script>
+<script src="supabase.js?v=cart-limit-ten"></script>
+<script src="shop.js?v=cart-limit-ten"></script>
 <script>
 const P=new URLSearchParams(location.search),PAGE=24;
 const st={q:(P.get('q')||'').slice(0,80),cat:P.get('cat')||'',brand:(P.get('brand')||'').slice(0,160),sort:['price_asc','price_desc'].includes(P.get('sort'))?P.get('sort'):'name',saved:P.get('saved')==='1',off:0};
