@@ -295,20 +295,20 @@
             out.textContent = `Importing ${i + 1} of ${rows.length}...`;
             try {
               if (!r.name) throw new Error('missing name');
-              let category_id = '';
+              const prev = r.sku ? bySku[r.sku.toLowerCase()] : null;
+              let category_id = prev?.category_id || '';
               if (r.category) {
                 const key = r.category.toLowerCase();
                 if (!catId[key]) catId[key] = (await Admin.saveCategory({ name: r.category })).id;
                 category_id = catId[key];
               }
-              const status = ['draft', 'published', 'archived'].includes((r.status || '').toLowerCase()) ? r.status.toLowerCase() : 'draft';
-              const prev = r.sku ? bySku[r.sku.toLowerCase()] : null;
+              const status = ['draft', 'published', 'archived'].includes((r.status || '').toLowerCase()) ? r.status.toLowerCase() : (prev?.status || 'draft');
               const photo = pack?.photos.get(r.sku?.toLowerCase());
               const existingImages = prev?.images || [];
               const uploaded = photo && !existingImages.length ? await Admin.uploadImage(await pack.photoFile(photo)) : null;
               const saved = await Admin.saveProduct({
-                id: prev?.id, sku: r.sku, name: r.name, brand: r.brand, description: r.description, category_id, status,
-                purchase_price: r.purchase_price, selling_price: r.selling_price, min_stock_alert: r.min_stock_alert || 5,
+                id: prev?.id, sku: r.sku, name: r.name, brand: r.brand || prev?.brand || '', description: r.description || prev?.description || '', category_id, status,
+                purchase_price: r.purchase_price === '' || r.purchase_price == null ? (prev?.purchase_price ?? 0) : r.purchase_price, selling_price: r.selling_price === '' || r.selling_price == null ? (prev?.selling_price ?? 0) : r.selling_price, min_stock_alert: r.min_stock_alert === '' || r.min_stock_alert == null ? (prev?.min_stock_alert ?? 5) : r.min_stock_alert,
                 initial_quantity:prev?0:Number(r.quantity||0),images: uploaded ? [uploaded] : existingImages,compare_at_price:prev?.compare_at_price,variant_group:prev?.variant_group,attributes:prev?.attributes
               });
               if (prev) updated++;
