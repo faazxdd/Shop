@@ -125,8 +125,9 @@ const Shop = {
      It stores product ids + quantities, never trusted prices. */
   cart: {
     KEY: 'cart_v1',
+    MAX_QUANTITY: 10,
     get() {
-      try { const rows = JSON.parse(localStorage.getItem(this.KEY)); return Array.isArray(rows) ? rows.filter(i => i && typeof i.product_id === 'string' && Number.isInteger(i.quantity) && i.quantity > 0 && i.quantity <= 999).slice(0,50) : []; } catch { return []; }
+      try { const rows = JSON.parse(localStorage.getItem(this.KEY)); return Array.isArray(rows) ? rows.filter(i => i && typeof i.product_id === 'string' && Number.isInteger(i.quantity) && i.quantity > 0 && i.quantity <= 999).slice(0,50).map(line=>({...line,quantity:Math.min(this.MAX_QUANTITY,line.quantity)})) : []; } catch { return []; }
     },
     save(items) {
       try { localStorage.setItem(this.KEY, JSON.stringify(items)); } catch { /* storage unavailable */ }
@@ -137,15 +138,15 @@ const Shop = {
       const items = this.get();
       const line = items.find(i => i.product_id === productId);
       if (!line && items.length>=50) throw new Error('Maximum 50 different products per order');
-      if (line) line.quantity = Math.min(999, line.quantity + qty);
-      else items.push({ product_id: productId, quantity: Math.min(999, qty) });
+      if (line) line.quantity = Math.min(this.MAX_QUANTITY, line.quantity + qty);
+      else items.push({ product_id: productId, quantity: Math.min(this.MAX_QUANTITY, qty) });
       this.save(items);
     },
     setQty(productId, qty) {
       if (!Number.isInteger(qty)) throw new Error('Invalid quantity');
       let items = this.get();
       if (qty <= 0) items = items.filter(i => i.product_id !== productId);
-      else items.forEach(i => { if (i.product_id === productId) i.quantity = Math.min(999, qty); });
+      else items.forEach(i => { if (i.product_id === productId) i.quantity = Math.min(this.MAX_QUANTITY, qty); });
       this.save(items);
     },
     remove(productId) { this.setQty(productId, 0); },
