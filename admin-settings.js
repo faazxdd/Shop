@@ -4,6 +4,99 @@
    ===================================================================== */
 
 (function () {
+  const MB = 1024 * 1024;
+  const photoTypes = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
+
+  async function readImportZip(file) {
+    if (file.size > 50 * MB) throw new Error('ZIP is too large (max 50 MB)');
+    const view = new DataView(await file.arrayBuffer());
+    const decoder = new TextDecoder();
+    let end = view.byteLength - 22;
+    const earliest = Math.max(0, end - 65535);
+    while (end >= earliest && (view.getUint32(end, true) !== 0x06054b50 ||
+      end + 22 + view.getUint16(end + 20, true) !== view.byteLength)) end--;
+    if (end < earliest) throw new Error('Invalid ZIP file');
+    const count = view.getUint16(end + 10, true);
+    if (count > 1000 || view.getUint16(end + 4, true) || view.getUint16(end + 6, true)) {
+      throw new Error('Use a standard single-file ZIP with at most 1,000 entries');
+    }
+    let offset = view.getUint32(end + 16, true);
+    let csv = null;
+    const photos = new Map();
+    for (let i = 0; i < count; i++) {
+      if (offset + 46 > end || view.getUint32(offset, true) !== 0x02014b50) throw new Error('Invalid ZIP directory');
+      const nameLength = view.getUint16(offset + 28, true);
+      const next = offset + 46 + nameLength + view.getUint16(offset + 30, true) + view.getUint16(offset + 32, true);
+      if (next > end) throw new Error('Invalid ZIP entry');
+      const path = decoder.decode(new Uint8Array(view.buffer, offset + 46, nameLength));
+      const photo = /^Photos\/([^/]+)\.(jpe?g|png|webp)$/i.exec(path);
+      const isCSV = /^[^/]+\.csv$/i.test(path);
+      if (photo || isCSV) {
+        const entry = {
+          path,
+          method: view.getUint16(offset + 10, true),
+          compressed: view.getUint32(offset + 20, true),
+          size: view.getUint32(offset + 24, true),
+          local: view.getUint32(offset + 42, true),
+        };
+        if (view.getUint16(offset + 8, true) & 1 || ![0, 8].includes(entry.method)) {
+          throw new Error('Use an unencrypted ZIP with standard compression');
+        }
+        if (entry.size > (isCSV ? 2 : 15) * MB) throw new Error('ZIP entry is too large: ' + path);
+        if (isCSV) {
+          if (csv) throw new Error('Keep only one CSV at the top level of the ZIP');
+          csv = entry;
+        } else {
+          const sku = photo[1].toLowerCase();
+          if (photos.has(sku)) throw new Error('Multiple ZIP photos for SKU ' + sku);
+          entry.type = photoTypes[photo[2].toLowerCase()];
+          photos.set(sku, entry);
+        }
+      }
+      offset = next;
+    }
+    if (!csv) throw new Error('The ZIP needs a CSV at its top level');
+
+    async function extract(entry) {
+      const {local, compressed, size, method} = entry;
+      if (local + 30 > end || view.getUint32(local, true) !== 0x04034b50) {
+        throw new Error('Invalid ZIP file data');
+      }
+      const start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
+      if (start + compressed > end || (method === 0 && compressed !== size)) throw new Error('Invalid ZIP file size');
+      const blob = new Blob([new Uint8Array(view.buffer, start, compressed)]);
+      if (method === 0) return blob;
+      let stream;
+      try { stream = new DecompressionStream('deflate-raw'); }
+      catch { throw new Error('ZIP import needs a newer browser. Try updating Safari or using Chrome.'); }
+      const reader = blob.stream().pipeThrough(stream).getReader();
+      const bytes = new Uint8Array(size);
+      let written = 0;
+      try {
+        for (;;) {
+          const {done, value} = await reader.read();
+          if (done) break;
+          if (written + value.length > size) throw new Error('ZIP entry exceeds its declared size');
+          bytes.set(value, written);
+          written += value.length;
+        }
+      } finally {
+        await reader.cancel();
+      }
+      if (written !== size) throw new Error('Incomplete ZIP entry');
+      return new Blob([bytes]);
+    }
+
+    return {
+      csv: await (await extract(csv)).text(),
+      photos,
+      async photoFile(entry) {
+        return new File([await extract(entry)], entry.path.split('/').pop(), {type: entry.type});
+      },
+    };
+  }
+
+
   /* ---------- QR library (loaded only when needed; pinned version) ---------- */
   const QR_URLS = ['vendor/qrcode-1.4.4.js'];
   let qrLoading = null;
@@ -98,7 +191,9 @@
           <p class="help">Header row, comma separated. Columns: <code>name</code> (required), sku, category, brand, description, purchase_price, selling_price, min_stock_alert, status (draft/published/archived), quantity.
           A row with an existing SKU updates that product (quantity is only used for new products). Save Excel files as "CSV UTF-8".</p>
           <input type="file" id="csv" accept=".csv,text/csv" class="input">
-          <div id="csv-result" class="mt small"></div>
+          <label class="field mt"><span>Import ZIP with photos</span><input type="file" id="product-zip" accept=".zip,application/zip" class="input"></label>
+          <p class="help">Use one CSV at the top level and name each image Photos/SKU.jpg, .png or .webp. Products with photos already keep their current images.</p>
+          <div role="status" id="csv-result" class="mt small"></div>
         </div>`;
 
       /* --- Business settings --- */
@@ -171,24 +266,30 @@
       drawQR();
 
       /* --- CSV import --- */
-      $('#csv').onchange = async e => {
+      const csvInput = $('#csv');
+      const zipInput = $('#product-zip');
+      async function importProducts(e) {
         const file = e.target.files[0]; if (!file) return;
+        const fromZip = e.target === zipInput;
+        csvInput.disabled = zipInput.disabled = true;
         const out = $('#csv-result');
         out.textContent = 'Reading file...';
         try {
-          if (file.size > 2 * 1024 * 1024) throw new Error('File is too large (max 2 MB)');
-          const rows = validateImportRows(parseCSV(await file.text()));
+          if (!fromZip && file.size > 2 * MB) throw new Error('File is too large (max 2 MB)');
+          const pack = fromZip ? await readImportZip(file) : null;
+          const rows = validateImportRows(parseCSV(pack ? pack.csv : await file.text()));
           if (!rows.length) throw new Error('No data rows found');
           if (rows.length > 500) throw new Error('Too many rows (max 500 per import)');
           if (!('name' in rows[0])) throw new Error('The file needs a "name" column');
-          if (!(await confirmDialog(`Import ${rows.length} row(s)?`, 'Import'))) { out.textContent = ''; return; }
+          const matches = pack ? rows.filter(r => pack.photos.has(r.sku?.toLowerCase())).length : 0;
+          if (!(await confirmDialog(`Import ${rows.length} row(s)?${pack ? ` ${matches} rows have matching photos.` : ''}`, 'Import'))) { out.textContent = ''; return; }
 
           const cats = await Admin.categories();
-          const catId = {}; cats.forEach(c => { catId[c.name.toLowerCase()] = c.id; });
+          const catId = Object.create(null); cats.forEach(c => { catId[c.name.toLowerCase()] = c.id; });
           const existing = await Admin.products();
-          const bySku = {}; existing.forEach(p => { if (p.sku) bySku[p.sku.toLowerCase()] = p; });
+          const bySku = Object.create(null); existing.forEach(p => { if (p.sku) bySku[p.sku.toLowerCase()] = p; });
 
-          let added = 0, updated = 0; const failed = [];
+          let added = 0, updated = 0, photosAdded = 0, photosKept = 0, photosMissing = 0; const failed = [];
           for (let i = 0; i < rows.length; i++) {
             const r = rows[i];
             out.textContent = `Importing ${i + 1} of ${rows.length}...`;
@@ -202,23 +303,33 @@
               }
               const status = ['draft', 'published', 'archived'].includes((r.status || '').toLowerCase()) ? r.status.toLowerCase() : 'draft';
               const prev = r.sku ? bySku[r.sku.toLowerCase()] : null;
+              const photo = pack?.photos.get(r.sku?.toLowerCase());
+              const existingImages = prev?.images || [];
+              const uploaded = photo && !existingImages.length ? await Admin.uploadImage(await pack.photoFile(photo)) : null;
               const saved = await Admin.saveProduct({
                 id: prev?.id, sku: r.sku, name: r.name, brand: r.brand, description: r.description, category_id, status,
                 purchase_price: r.purchase_price, selling_price: r.selling_price, min_stock_alert: r.min_stock_alert || 5,
-                initial_quantity:prev?0:Number(r.quantity||0),images: prev?.images || [],compare_at_price:prev?.compare_at_price,variant_group:prev?.variant_group,attributes:prev?.attributes
+                initial_quantity:prev?0:Number(r.quantity||0),images: uploaded ? [uploaded] : existingImages,compare_at_price:prev?.compare_at_price,variant_group:prev?.variant_group,attributes:prev?.attributes
               });
               if (prev) updated++;
-              else {
-                added++;
-                if(r.sku) bySku[r.sku.toLowerCase()]=saved;
-              }
+              else added++;
+              if (r.sku) bySku[r.sku.toLowerCase()] = saved;
+              if (uploaded) photosAdded++;
+              else if (photo) photosKept++;
+              else if (pack && !existingImages.length) photosMissing++;
             } catch (err) { failed.push(`Row ${i + 2}: ${errMsg(err)}`); }
           }
           out.innerHTML = `<strong>Done.</strong> ${added} added, ${updated} updated, ${failed.length} failed.` +
+            (pack ? ` ${photosAdded} photos added, ${photosKept} existing photos kept, ${photosMissing} products without a photo.` : '') +
             (failed.length ? `<ul>${failed.slice(0, 20).map(f => `<li>${esc(f)}</li>`).join('')}</ul>` : '');
-        } catch (err) { out.innerHTML = `<span class="error-text">${esc(errMsg(err))}</span>`; }
-        e.target.value = '';
-      };
+        } catch (err) {
+          out.innerHTML = `<span class="error-text">${esc(errMsg(err))}</span>`;
+        } finally {
+          e.target.value = '';
+          csvInput.disabled = zipInput.disabled = false;
+        }
+      }
+      csvInput.onchange = zipInput.onchange = importProducts;
     }
   });
 })();
