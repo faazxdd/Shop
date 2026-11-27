@@ -71,11 +71,11 @@
     { key: 'profit', label: 'Profit by product', needsRange: true, async build(r) {
         const d = await profitData(r);
         const rows = d.rows.map(g => ({
-          Product: g.name, 'Qty sold': g.qty, Sales: round2(g.revenue), Cost: round2(g.cost),
-          Profit: round2(g.profit), 'Margin %': g.revenue ? round2(g.profit / g.revenue * 100) : 0 }));
+          Product: g.name, 'Qty sold': g.qty, Sales: round2(g.revenue), Cost: g.unknown ? 'Incomplete' : round2(g.cost),
+          Profit: g.unknown ? 'Incomplete' : round2(g.profit), 'Margin %': g.unknown ? '' : (g.revenue ? round2(g.profit / g.revenue * 100) : 0) }));
         if (rows.length) rows.push({ Product: 'TOTAL', 'Qty sold': d.rows.reduce((a, g) => a + g.qty, 0),
-          Sales: round2(d.revenue), Cost: round2(d.cost), Profit: round2(d.profit),
-          'Margin %': d.revenue ? round2(d.profit / d.revenue * 100) : 0 });
+          Sales: round2(d.revenue), Cost: d.unknown ? 'Incomplete' : round2(d.cost), Profit: d.unknown ? 'Incomplete' : round2(d.profit),
+          'Margin %': d.unknown ? '' : (d.revenue ? round2(d.profit / d.revenue * 100) : 0) });
         return { name: 'profit-by-product', rows };
     } },
     { key: 'daily', label: 'Daily orders', needsRange: true, async build(r) {
@@ -105,13 +105,14 @@
         if (!known) unknown++;
         revenue += rev; costTotal += c;
         const k = i.product_id || ('name:' + i.product_name);
-        const g = byProduct[k] || (byProduct[k] = { name: i.product_name, qty: 0, revenue: 0, cost: 0 });
+        const g = byProduct[k] || (byProduct[k] = { name: i.product_name, qty: 0, revenue: 0, cost: 0, unknown: 0 });
+        if (!known) g.unknown++;
         g.qty += qty; g.revenue += rev; g.cost += c;
       }
     }
     const rows = Object.values(byProduct)
       .map(g => ({ ...g, profit: g.revenue - g.cost }))
-      .sort((a, b) => b.profit - a.profit);
+      .sort((a, b) => Number(!!a.unknown) - Number(!!b.unknown) || b.profit - a.profit);
     return { orders: orders.length, revenue, cost: costTotal, profit: revenue - costTotal, unknown, rows };
   }
 
@@ -195,13 +196,13 @@
           const margin = d.revenue ? (d.profit / d.revenue * 100) : 0;
           box.innerHTML = `
             <div class="summary-row"><span>Sales (${d.orders} order${d.orders === 1 ? '' : 's'})</span><span>${money(d.revenue)}</span></div>
-            <div class="summary-row"><span>Cost</span><span>${money(d.cost)}</span></div>
-            <div class="summary-row summary-total"><span>Profit</span><span>${money(d.profit)} &middot; ${margin.toFixed(1)}%</span></div>
+            <div class="summary-row"><span>Cost</span><span>${d.unknown ? 'Incomplete' : money(d.cost)}</span></div>
+            <div class="summary-row summary-total"><span>Profit</span><span>${d.unknown ? 'Incomplete' : `${money(d.profit)} &middot; ${margin.toFixed(1)}%`}</span></div>
             <div class="table-wrap mt"><table>
               <thead><tr><th>Product</th><th class="num">Qty</th><th class="num">Sales</th><th class="num">Profit</th></tr></thead>
-              <tbody>${d.rows.slice(0, 10).map(g => `<tr><td>${esc(g.name)}</td><td class="num">${g.qty}</td><td class="num">${money(g.revenue)}</td><td class="num">${money(g.profit)}</td></tr>`).join('')}</tbody>
+              <tbody>${d.rows.slice(0, 10).map(g => `<tr><td>${esc(g.name)}</td><td class="num">${g.qty}</td><td class="num">${money(g.revenue)}</td><td class="num">${g.unknown ? 'Incomplete' : money(g.profit)}</td></tr>`).join('')}</tbody>
             </table></div>
-            <p class="help">${d.rows.length > 10 ? 'Top 10 by profit shown. ' : ''}Download "Profit by product" for the full list.${d.unknown ? ` ${d.unknown} item(s) have no historical cost snapshot. Profit is incomplete; their unknown cost is counted as 0.` : ''}</p>`;
+            <p class="help">${d.rows.length > 10 ? 'Top 10 by profit shown. ' : ''}Download "Profit by product" for the full list.${d.unknown ? ` ${d.unknown} item(s) have no historical cost snapshot. Profit and cost are withheld until historical costs are available.` : ''}</p>`;
         } catch (err) { box.innerHTML = `<div class="empty">${esc(errMsg(err))}</div>`; }
       }
       from.onchange = () => { drawChart(); drawProfit(); };
