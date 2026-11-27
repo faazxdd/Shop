@@ -8,7 +8,7 @@
    Bump CACHE_VERSION on each deployment to clear old files.
    ===================================================================== */
 
-const CACHE_VERSION = 'v8-commerce-cart-audit-fixes';
+const CACHE_VERSION = 'v8-commerce-cart-race-fix';
 const CACHE_NAME = 'shop-static-' + CACHE_VERSION;
 const SHELL = [
   './', 'index.html', 'products.html', 'cart.html', 'orders.html', 'account.html', 'account.js',

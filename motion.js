@@ -52,6 +52,36 @@ function motionDock(dock) {
 }
 
 const cartChanges = new Map();
+const remoteCartVersions = new Map();
+window.addEventListener('storage',event=>{
+  if(event.key!==Shop.cart.KEY&&event.key!==null)return;
+  if(event.key===null){
+    for(const id of cartChanges.keys())remoteCartVersions.set(id,(remoteCartVersions.get(id)||0)+1);
+    return;
+  }
+  try{
+    const before=new Map((JSON.parse(event.oldValue)||[]).map(item=>[item.product_id,item.quantity]));
+    const after=new Map((JSON.parse(event.newValue)||[]).map(item=>[item.product_id,item.quantity]));
+    for(const id of cartChanges.keys()){
+      if(before.get(id)!==after.get(id))remoteCartVersions.set(id,(remoteCartVersions.get(id)||0)+1);
+    }
+  }catch{ /* A malformed stored cart is already handled by Shop.cart.get(). */ }
+});
+
+let waitingForCart = false;
+document.addEventListener('click',async event=>{
+  const link=event.target.closest('a[href]');
+  if(!link||event.defaultPrevented||event.button||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||link.download||link.target&&link.target!=='_self')return;
+  const url=new URL(link.href);
+  if(url.origin!==location.origin||url.pathname!==new URL('cart.html',location.href).pathname||!cartChanges.size)return;
+  event.preventDefault();
+  if(waitingForCart)return;
+  waitingForCart=true;
+  link.setAttribute('aria-busy','true');
+  while(cartChanges.size)await Promise.allSettled([...cartChanges.values()]);
+  location.assign(url.href);
+});
+
 const stockCeilings = new Map();
 const cartLimit = id => Math.min(Shop.cart.MAX_QUANTITY,stockCeilings.get(id)?.quantity ?? Infinity);
 
@@ -59,7 +89,9 @@ const cartLimit = id => Math.min(Shop.cart.MAX_QUANTITY,stockCeilings.get(id)?.q
 // existing read-only quote endpoint for each increase before saving locally.
 function changeCartQuantity(id, delta) {
   const previous = cartChanges.get(id) || Promise.resolve();
+  const version = remoteCartVersions.get(id) || 0;
   const change = previous.catch(() => {}).then(async () => {
+    if ((remoteCartVersions.get(id) || 0) !== version) return 0;
     const quantity = Shop.cart.get().find(line => line.product_id === id)?.quantity || 0;
     const next = delta > 0 ? Math.max(quantity, Math.min(cartLimit(id), quantity + delta)) : Math.max(0, quantity + delta);
     if (next === quantity) return 0;
@@ -83,7 +115,7 @@ function changeCartQuantity(id, delta) {
       }
       // Re-read in case a different tab changed the cart during the quote.
       const current = Shop.cart.get().find(line => line.product_id === id)?.quantity || 0;
-      if (current >= next) return 0;
+      if (current !== quantity || (remoteCartVersions.get(id) || 0) !== version) return 0;
       Shop.cart.add(id,next-current);
       return next-current;
     }
@@ -91,7 +123,11 @@ function changeCartQuantity(id, delta) {
     return next-quantity;
   });
   cartChanges.set(id,change);
-  const clear = () => { if (cartChanges.get(id) === change) cartChanges.delete(id); };
+  const clear = () => {
+    if (cartChanges.get(id) !== change) return;
+    cartChanges.delete(id);
+    remoteCartVersions.delete(id);
+  };
   change.then(clear,clear);
   return change;
 }
