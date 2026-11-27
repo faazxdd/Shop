@@ -22,8 +22,8 @@ function fmtDate(v){const d=new Date(v);return isNaN(d)?'':d.toLocaleString('en-
 async function withBusy(btn,fn){if(btn.disabled)return;btn.disabled=true;btn.classList.add('busy');try{return await fn()}finally{btn.disabled=false;btn.classList.remove('busy')}}
 let _tt;function toast(m,t){let e=$('#toast');if(!e){e=document.createElement('div');e.id='toast';e.setAttribute('role','status');document.body.append(e)}e.className='toast '+(t||'');e.textContent=m;clearTimeout(_tt);requestAnimationFrame(()=>e.classList.add('show'));_tt=setTimeout(()=>e.classList.remove('show'),2200)}
 let _dlg, _returnFocus;
-function sheet(html){_returnFocus=document.activeElement;let o=$('#sheet');if(!o){o=document.createElement('div');o.id='sheet';o.className='ov';o.addEventListener('click',e=>{if(e.target===o||e.target.closest('[data-close]'))closeSheet()});document.body.append(o)}o.innerHTML=`<div class="sh" role="dialog" aria-modal="true" aria-label="Product details or confirmation" tabindex="-1">${html}</div>`;o.classList.add('open');document.body.classList.add('lock');o.querySelector('.sh').focus()}
-function closeSheet(){const o=$('#sheet');if(o)o.classList.remove('open');document.body.classList.remove('lock');_returnFocus?.focus();if(_dlg){const d=_dlg;_dlg=null;d(false)}}
+function sheet(html){_returnFocus=document.activeElement;let o=$('#sheet');if(!o){o=document.createElement('div');o.id='sheet';o.className='ov';o.addEventListener('click',e=>{if(e.target===o||e.target.closest('[data-close]'))closeSheet()});document.body.append(o)}o.innerHTML=`<div class="sh" role="dialog" aria-modal="true" aria-label="Product details or confirmation" tabindex="-1">${html}</div>`;o.inert=false;o.setAttribute('aria-hidden','false');o.getBoundingClientRect();o.classList.add('open');document.body.classList.add('lock');o.querySelector('.sh').focus()}
+function closeSheet(){const o=$('#sheet');if(o){o.classList.remove('open');o.inert=true;o.setAttribute('aria-hidden','true')}document.body.classList.remove('lock');_returnFocus?.focus();if(_dlg){const d=_dlg;_dlg=null;d(false)}}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet();if(e.key==='Tab'&&$('#sheet.open')){const a=$$('#sheet button:not(:disabled),#sheet a[href],#sheet select,#sheet input');const first=a[0],last=a.at(-1);if(e.shiftKey&&(document.activeElement===first||document.activeElement.classList.contains('sh'))){e.preventDefault();last?.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}}});
 function confirmDialog(msg,ok='Confirm'){return new Promise(res=>{_dlg=res;sheet(`<button class="x" data-close aria-label="Close">${ic('x')}</button><p class="dm">${esc(msg)}</p><div class="dr"><button class="btn" data-close>Cancel</button><button class="btn dark" data-ok>${esc(ok)}</button></div>`);$('#sheet [data-ok]').onclick=()=>{_dlg=null;closeSheet();res(true)}})}
 const emptyHtml=(i,t,p,b)=>`<div class="empty"><div class="big">${ic(i)}</div><h2>${esc(t)}</h2>${p?`<p>${p}</p>`:''}${b||''}</div>`;
@@ -36,13 +36,13 @@ async function shareProduct(p){const url=new URL('products.html',location.href);
 
 const stockOf=p=>/out/i.test(p.stock_status||'')?'out':/low/i.test(p.stock_status||'')?'low':'in';
 function cardQuantity(id){return Shop.cart.get().find(line=>line.product_id===id)?.quantity||0}
-function cardCartButtons(id,quantity,out){
+function cardCartButtons(id,quantity,out,limit){
   const style='touch-action:manipulation;background:#fff;color:#142029;border:1px solid #cbd2d8;white-space:nowrap';
-  if(!quantity)return `<button type="button" class="btn sm" style="${style}" data-add="${id}" ${out?'disabled':''}>${ic('plus')}Add</button>`;
+  if(!quantity)return `<button type="button" class="btn sm" style="${style}" data-add="${id}" ${out||!limit?'disabled':''}>${ic('plus')}Add</button>`;
   return `<div role="group" aria-label="Cart quantity" style="display:inline-flex;align-items:center;gap:4px;touch-action:manipulation">
     <button type="button" class="btn sm" style="${style};min-width:32px;padding-inline:5px" data-card-minus="${id}" aria-label="Remove one">−</button>
     <span data-card-count aria-live="polite">${quantity}</span>
-    <button type="button" class="btn sm" style="${style};min-width:32px;padding-inline:5px" data-add="${id}" aria-label="Add one" ${out||quantity>=Shop.cart.MAX_QUANTITY?'disabled':''}>+</button>
+    <button type="button" class="btn sm" style="${style};min-width:32px;padding-inline:5px" data-add="${id}" aria-label="Add one" ${out||quantity>=limit?'disabled':''}>+</button>
   </div>`;
 }
 function productCardHtml(p) {
@@ -54,7 +54,7 @@ function productCardHtml(p) {
     <button class="hb ${saved?'on':''}" data-fav="${id}" aria-pressed="${saved}" aria-label="Save ${esc(p.name)}">${ic('heart',saved)}</button>
     </div><div class="pm">${esc(p.category_name||'')}</div><h3 class="pt"><button class="product-title-button" data-open="${id}">${esc(p.name)}</button></h3></div>
     <div class="pf"><span class="price">${money(p.selling_price)}${p.compare_at_price>p.selling_price?`<del>${money(p.compare_at_price)}</del><small class="offer">Save ${Math.round((1-p.selling_price/p.compare_at_price)*100)}%</small>`:''}</span>
-    <div data-card-cart="${id}" data-out="${stock==='out'}">${cardCartButtons(id,cardQuantity(p.id),stock==='out')}</div></div></article>`;
+    <div data-card-cart="${id}" data-out="${stock==='out'}">${cardCartButtons(id,cardQuantity(p.id),stock==='out',cartLimit(p.id))}</div></div></article>`;
 }
 async function openProduct(id){let p=PC[id];if(!p){try{p=await Shop.product(id)}catch(e){return toast(errMsg(e),'bad')}}if(!p)return toast('Product is no longer available','bad');PC[id]=p;rememberProduct(id);
 const im=p.images||[],s=stockOf(p),sv=Shop.favs.has(p.id);let q=1;
@@ -62,13 +62,30 @@ sheet(`<button class="x" data-close aria-label="Close">${ic('x')}</button><div c
 if(p.variant_group){Shop.products({variantGroup:p.variant_group,limit:100}).then(rows=>{if(!$('#variant-options'))return;$('#variant-options').innerHTML='<label class="field"><span>Choose variant</span><select class="in" id="variant-select">'+rows.map(v=>`<option value="${esc(v.id)}" ${v.id===p.id?'selected':''}>${esc(Object.entries(v.attributes||{}).map(([k,v])=>k+': '+v).join(' / ')||v.name)} · ${money(v.selling_price)}</option>`).join('')+'</select>';$('#variant-select').onchange=e=>openProduct(e.target.value)}).catch(e=>toast(errMsg(e),'bad'))}
 const zoom=$('#pd-img');if(zoom){zoom.tabIndex=0;zoom.setAttribute('role','button');zoom.setAttribute('aria-label','Toggle image zoom');zoom.onclick=()=>zoom.classList.toggle('zoomed');zoom.onkeydown=e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();zoom.click()}}}
 $('#share-product').onclick=()=>shareProduct(p);const sh=$('#sheet');sh.onclick=e=>{const t=e.target.closest('[data-th]');if(t){const old=$('#pd-img');if(old)old.src=t.dataset.th;else{const img=document.createElement('img');img.id='pd-img';img.alt=p.name;img.src=t.dataset.th;$('.pdi .pi',sh).replaceChildren(img)}$$('.th button',sh).forEach(b=>b.classList.toggle('on',b===t))}};
-$('#pq-').onclick=()=>$('#pq').textContent=q=Math.max(1,q-1);$('#pq\\+').onclick=()=>$('#pq').textContent=q=Math.min(Math.max(1,Shop.cart.MAX_QUANTITY-cardQuantity(p.id)),q+1);
-$('#pq-add').onclick=()=>{if(cardQuantity(p.id)>=Shop.cart.MAX_QUANTITY){toast('Maximum 10 per product','bad');return}Shop.cart.add(p.id,q);closeSheet();toast('Added to cart','ok')}}
+const quantityLabel=$('#pq');
+const updateQuantity=delta=>{
+  q=Math.max(1,Math.min(Math.max(1,cartLimit(p.id)-cardQuantity(p.id)),q+delta));
+  if(quantityLabel.textContent!==String(q)){
+    quantityLabel.textContent=q;
+    motionPulse(quantityLabel);
+  }
+};
+$('#pq-').onclick=()=>updateQuantity(-1);
+$('#pq\\+').onclick=()=>updateQuantity(1);
+const add=$('#pq-add');
+add.onclick=()=>withBusy(add,async()=>{
+  try{
+    const changed=await changeCartQuantity(p.id,q);
+    if(changed&&add.isConnected&&$('#sheet.open'))closeSheet();
+    if(changed)toast('Added to cart','ok');
+    else toast('Maximum quantity reached','bad');
+  }catch(error){toast(errMsg(error),'bad')}
+})}
 document.addEventListener('click',e=>{
-const f=e.target.closest('[data-fav]');if(f){e.preventDefault();e.stopPropagation();const id=f.dataset.fav,on=Shop.favs.toggle(id);$$('[data-fav]').forEach(b=>{if(b.dataset.fav===id){b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));b.innerHTML=ic('heart',on)+(b.classList.contains('btn')?(on?'Saved':'Save'):'')}});toast(on?'Saved for later':'Removed from saved');return}
+const f=e.target.closest('[data-fav]');if(f){e.preventDefault();e.stopPropagation();const id=f.dataset.fav,on=Shop.favs.toggle(id);$$('[data-fav]').forEach(b=>{if(b.dataset.fav===id){b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));b.innerHTML=ic('heart',on)+(b.classList.contains('btn')?(on?'Saved':'Save'):'')}});motionPulse(f.querySelector('svg'));toast(on?'Saved for later':'Removed from saved');return}
 const minus=e.target.closest('[data-card-minus]');
-if(minus){e.stopPropagation();const id=minus.dataset.cardMinus;Shop.cart.setQty(id,cardQuantity(id)-1);return}
-const a=e.target.closest('[data-add]');if(a){if(a.disabled||stockOf(PC[a.dataset.add]||{})==='out')return;e.stopPropagation();try{Shop.cart.add(a.dataset.add,1)}catch(error){toast(errMsg(error),'bad')}return}
+if(minus){e.stopPropagation();const id=minus.dataset.cardMinus;changeCartQuantity(id,-1).catch(error=>toast(errMsg(error),'bad'));return}
+const a=e.target.closest('[data-add]');if(a){if(a.disabled||stockOf(PC[a.dataset.add]||{})==='out')return;e.stopPropagation();changeCartQuantity(a.dataset.add,1).catch(error=>toast(errMsg(error),'bad'));return}
 const o=e.target.closest('[data-open]');if(o)openProduct(o.dataset.open)});
 
 /* ---------- header, dock, footer, settings ---------- */
@@ -80,7 +97,7 @@ const h=$('#site-header');h.className='hd';
 h.innerHTML=`<div class="hd-in"><a class="brand" href="index.html"><span class="mark brand-logo"><img src="icons/logo.png" width="42" height="18" alt=""></span><span><b data-biz>FC Cart</b></span></a><nav class="nav" aria-label="Main">${NAV.slice(0,4).map(n=>`<a href="${n[1]}" class="${n[0]===active?'on':''}">${n[2]}</a>`).join('')}</nav><div class="acts"><a class="ib" href="account.html" aria-label="My account">${ic('user')}</a><button class="ib" id="theme-switch" type="button" aria-label="Switch theme"></button><a class="ib" href="products.html?focus=1" aria-label="Search">${ic('search')}</a><a class="ib" href="products.html?saved=1" aria-label="Saved products">${ic('heart')}<i class="cnt" data-favcount></i></a><a class="btn dark" href="cart.html">${ic('bag')}<span>Cart</span><i class="cnt" data-cartcount></i></a></div></div>`;
 $('#site-footer').className='ft';
 $('#site-footer').innerHTML=`<b data-biz>FC Cart</b><a href="products.html">Products</a><a href="orders.html">Orders</a><a href="account.html">My account</a><div id="f-contact"></div><div class="cp">&copy; ${new Date().getFullYear()} <span data-biz>FC Cart</span></div>`;
-if(!$('.dock')){const d=document.createElement('nav');d.className='dock';d.setAttribute('aria-label','Quick navigation');d.innerHTML=NAV.map(n=>`<a href="${n[1]}" class="${n[0]===active?'on':''}">${ic(n[3])}<span>${n[2].replace('My orders','Orders')}</span>${n[0]==='cart'?'<i class="cnt" data-cartcount></i>':''}</a>`).join('');document.body.append(d)}
+if(!$('.dock')){const d=document.createElement('nav');d.className='dock';d.setAttribute('aria-label','Quick navigation');d.innerHTML=NAV.map(n=>`<a href="${n[1]}" class="${n[0]===active?'on':''}">${ic(n[3])}<span>${n[2].replace('My orders','Orders')}</span>${n[0]==='cart'?'<i class="cnt" data-cartcount></i>':''}</a>`).join('');document.body.append(d);motionDock(d)}
 counts();const toggle=$('#theme-switch');function paintTheme(){const dark=document.documentElement.dataset.shopTheme==='dark';toggle.innerHTML=ic(dark?'sun':'moon');toggle.setAttribute('aria-label',dark?'Switch to light mode':'Switch to dark mode');document.querySelector('meta[name="theme-color"]').content=dark?'#101010':'#ffffff'}toggle.onclick=()=>{const next=document.documentElement.dataset.shopTheme==='dark'?'light':'dark';document.documentElement.dataset.shopTheme=next;try{localStorage.setItem('shop-theme',next)}catch{}paintTheme()};paintTheme()}
 function updateCardQuantities(){
   const quantities=new Map(Shop.cart.get().map(line=>[line.product_id,line.quantity]));
@@ -89,17 +106,27 @@ function updateCardQuantities(){
     const quantity=quantities.get(id)||0;
     const count=control.querySelector('[data-card-count]');
     if(count&&quantity){
-      count.textContent=quantity;
-      control.querySelector('[data-add]').disabled=control.dataset.out==='true'||quantity>=Shop.cart.MAX_QUANTITY;
+      if(count.textContent!==String(quantity)){count.textContent=quantity;motionPulse(count)}
+      control.querySelector('[data-add]').disabled=control.dataset.out==='true'||quantity>=cartLimit(id);
     }else if(Boolean(count)!==Boolean(quantity)){
       const focused=control.contains(document.activeElement);
-      control.innerHTML=cardCartButtons(esc(id),quantity,control.dataset.out==='true');
+      control.innerHTML=cardCartButtons(esc(id),quantity,control.dataset.out==='true',cartLimit(id));
+      motionPulse(control.querySelector('[data-card-count]'));
       if(focused)(control.querySelector('[data-add]:not(:disabled)')||control.querySelector('[data-card-minus]'))?.focus({preventScroll:true});
+    }else if(!quantity){
+      control.querySelector('[data-add]').disabled=control.dataset.out==='true'||cartLimit(id)===0;
     }
   }
 }
-window.addEventListener('cart-changed',()=>{counts();updateCardQuantities()});
-window.addEventListener('storage',event=>{if(event.key===Shop.cart.KEY)updateCardQuantities()});window.addEventListener('favs-changed',counts);
+let previousCartCount=Shop.cart.count();
+window.addEventListener('cart-changed',()=>{
+  counts();updateCardQuantities();
+  const next=Shop.cart.count();
+  if(next>previousCartCount)document.querySelectorAll('[data-cartcount]').forEach(badge=>motionPulse(badge.parentElement.querySelector('svg')));
+  previousCartCount=next;
+});
+window.addEventListener('cart-stock-limit',updateCardQuantities);
+window.addEventListener('storage',event=>{if(event.key===Shop.cart.KEY){previousCartCount=Shop.cart.count();counts();updateCardQuantities()}});window.addEventListener('favs-changed',counts);
 async function applyBusinessSettings(){
 try{const s=await Shop.settings();if(!s)return null;window._shopSettings=s;
 const n=/^fz\s*cart$/i.test(s.business_name||'')?'FC Cart':s.business_name||'FC Cart';$$('[data-biz]').forEach(e=>e.textContent=n);

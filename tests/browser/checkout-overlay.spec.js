@@ -31,13 +31,14 @@ async function openCart(page, checkout) {
 
 const order = { order_id: id, order_number: 1001, total: 108.25 };
 
-test('quick checkout waits before confirmation and submits only once', async ({ page }) => {
+test('checkout shows processing until the response and submits only once', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   let requests = 0;
-  await openCart(page, route => { requests++; return route.fulfill({ json: order }); });
+  let release;
+  const response = new Promise(resolve => { release = resolve; });
+  await openCart(page, async route => { requests++; await response; return route.fulfill({ json: order }); });
   const button = page.getByRole('button', { name: 'Place order' });
   await expect(button).toBeEnabled();
-  const started = Date.now();
   await button.dblclick();
   await expect(button).toBeDisabled();
   const dialog = page.getByRole('dialog');
@@ -50,15 +51,16 @@ test('quick checkout waits before confirmation and submits only once', async ({ 
   await expect(dialog.locator('h2')).toHaveCSS('outline-style', 'none');
   await page.keyboard.press('Escape');
   await expect(dialog).toBeVisible();
+  release();
   await expect(dialog).toHaveAccessibleName('Order Confirmed');
   await expect(ring).toBeHidden();
   await expect(dialog.locator('.fz-checkmark-badge')).toBeVisible();
   await expect(dialog).toHaveCSS('width', '320px');
   await page.keyboard.press('Tab');
   await expect(dialog.getByRole('link', { name: 'View my orders' })).toBeFocused();
-  expect(Date.now() - started).toBeGreaterThanOrEqual(1500);
   expect(requests).toBe(1);
-  await expect(dialog).toContainText('Order #1001 · Total AED 108.25');
+  await expect(dialog).toContainText(/order #1001\b/i);
+  await expect(dialog).toContainText('Total: AED 108.25');
   await expect(page.getByText('Your cart is empty')).toBeVisible();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('cart_v1')))).toEqual([]);
   await dialog.getByRole('button', { name: 'Continue' }).click();

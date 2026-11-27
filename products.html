@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-BjneGI/qmcInvXxzHM/xfivqSd1l99XoX4l23H6i2lM='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-jJaVag99QTjb0/QDnGzmWfZmZOUvfpcTr4lXQ7mOf1Y='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Products | FC Cart</title>
 <meta name="description" content="Browse FC Cart products, compare AED prices, choose variants and place your order.">
@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <script>try{document.documentElement.dataset.shopTheme=localStorage.getItem("shop-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}</script>
-<link rel="stylesheet" href="shop.css?v=mobile3">
+<link rel="stylesheet" href="shop.css?v=premium-motion">
 <link rel="canonical" href="https://faazxdd.github.io/Shop/products.html">
 <meta property="og:title" content="FC Cart">
 <meta property="og:type" content="website">
@@ -40,8 +40,8 @@
 <footer id="site-footer"></footer>
 </div>
 <script src="vendor/supabase-2.110.1.js"></script>
-<script src="supabase.js?v=cart-limit-ten"></script>
-<script src="shop.js?v=cart-limit-ten"></script>
+<script src="supabase.js?v=premium-motion"></script>
+<script src="motion.js?v=premium-motion"></script><script src="shop.js?v=premium-motion"></script>
 <script>
 const P=new URLSearchParams(location.search),PAGE=24;
 const st={q:(P.get('q')||'').slice(0,80),cat:P.get('cat')||'',brand:(P.get('brand')||'').slice(0,160),sort:['price_asc','price_desc'].includes(P.get('sort'))?P.get('sort'):'name',saved:P.get('saved')==='1',off:0};
@@ -80,7 +80,16 @@ $('#sort').addEventListener('change',e=>{st.sort=e.target.value;sync();fetchPage
 $('#more').addEventListener('click',e=>withBusy(e.currentTarget,()=>fetchPage(false)));
 applyBusinessSettings();
 Shop.categories().then(drawCats).catch(console.error);
-window.addEventListener('favs-changed',()=>{if(st.saved)fetchPage(true)});
+window.addEventListener('favs-changed',()=>{
+  if(!st.saved)return;
+  const saved=new Set(Shop.favs.get());
+  if(!saved.size){fetchPage(true);return}
+  for(const card of grid.querySelectorAll('.pc')){
+    if(!saved.has(card.querySelector('[data-fav]').dataset.fav)){card.remove();shown--}
+  }
+  $('#count').textContent=shown?shown+' product'+(shown===1?'':'s')+' shown':'';
+  if(!shown)fetchPage(true);
+});
 fetchPage(true);
 if(P.get("product"))openProduct(P.get("product"));
 </script>

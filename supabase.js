@@ -228,7 +228,7 @@ const Shop = {
     return Array.isArray(rows) ? rows : (rows ? [rows] : []);
   },
 
-  async quote(coupon = '') { return throwIfError(await sb.rpc('quote_order', { p_items: Shop.cart.get(), p_coupon: coupon || null })); },
+  async quote(coupon = '', items = Shop.cart.get()) { return throwIfError(await sb.rpc('quote_order', { p_items: items, p_coupon: coupon || null })); },
 
   async placeOrder({ name, phone, address, coupon = '' }) {
     const items = Shop.cart.get();
