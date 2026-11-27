@@ -45,11 +45,17 @@ test('quick checkout waits before confirmation and submits only once', async ({ 
   const ring = dialog.locator('.fz-spinner');
   await expect(ring).toHaveCSS('animation-name', 'fz-checkout-spin');
   await expect(ring).toHaveCSS('background-image', /conic-gradient/);
+  await expect(ring).toHaveCSS('width', '32px');
+  await expect(dialog).toHaveCSS('width', '244px');
+  await expect(dialog.locator('h2')).toHaveCSS('outline-style', 'none');
   await page.keyboard.press('Escape');
   await expect(dialog).toBeVisible();
   await expect(dialog).toHaveAccessibleName('Order Confirmed');
   await expect(ring).toBeHidden();
   await expect(dialog.locator('.fz-checkmark-badge')).toBeVisible();
+  await expect(dialog).toHaveCSS('width', '320px');
+  await page.keyboard.press('Tab');
+  await expect(dialog.getByRole('link', { name: 'View my orders' })).toBeFocused();
   expect(Date.now() - started).toBeGreaterThanOrEqual(1500);
   expect(requests).toBe(1);
   await expect(dialog).toContainText('Order #1001 · Total AED 108.25');
