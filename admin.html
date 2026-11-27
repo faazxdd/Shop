@@ -366,7 +366,7 @@
         if (!(await confirmDialog(`Delete "${p.name}"? This cannot be undone.`, 'Delete', true))) return;
         try {
           await Admin.deleteProduct(p.id);
-
+          closeSheet();
           toast('Product deleted', 'success'); reload();
         } catch (err) { toast(errMsg(err), 'error'); }
       };
