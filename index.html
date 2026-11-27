@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-xl2BI6mWy7YMZgTQHi7xnlvtFYKV7eHarXtFlt8gJTw='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>FC Cart</title>
+<title>FZ Cart</title>
 <meta name="description" content="Browse our products and place your order online.">
 <meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="manifest.json">
@@ -22,7 +22,7 @@
 </style>
 
 <link rel="canonical" href="https://faazxdd.github.io/Shop/index.html">
-<meta property="og:title" content="FC Cart">
+<meta property="og:title" content="FZ Cart">
 <meta property="og:type" content="website">
 </head>
 <body>
@@ -31,7 +31,7 @@
 <div id="util"></div>
 <header id="site-header"></header>
 <main id="main-content" class="main">
-<section class="shop-intro"><h1>FC Cart</h1><form id="sf" class="search" role="search"><input class="in" id="q" type="search" placeholder="Search products" aria-label="Search products" maxlength="80"><button class="btn dark" type="submit">Search</button></form></section>
+<section class="shop-intro"><h1>FZ Cart</h1><form id="sf" class="search" role="search"><input class="in" id="q" type="search" placeholder="Search products" aria-label="Search products" maxlength="80"><button class="btn dark" type="submit">Search</button></form></section>
 <section id="saved-sec" hidden aria-labelledby="saved-title"><div class="sh-head"><div><h2 id="saved-title">Saved by you</h2></div><a href="products.html?saved=1">See all</a></div><div class="hs" id="saved"></div></section>
 <section id="cat-sec" aria-labelledby="cat-title"><div class="sh-head"><div><h2 id="cat-title">Shop by collection</h2></div></div><div class="collection-cards" id="categories" aria-live="polite"></div></section>
 <div id="category-sections"></div>
@@ -95,7 +95,7 @@ async function loadCategorySections(categories){
     }));
   }
 }
-async function load(){try{const s=await applyBusinessSettings();document.title="FC Cart";
+async function load(){try{const s=await applyBusinessSettings();document.title="FZ Cart";
 const [cats,products]=await Promise.all([Shop.categories(),Shop.products({limit:12})]);
 $('#cat-sec').hidden=!cats.length;
 grid.innerHTML=products.length?products.map(productCardHtml).join(''):emptyHtml('box','No products yet','Check back soon.');
