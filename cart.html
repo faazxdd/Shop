@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-4Mts4HeJRIsb2s2xxFQiz23ulwEs1mawnd//rRyeAMY='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-3j9EqnJ5ShyelpKii8X+iNmjFN0Ae5SSrVKGd50p72Y='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Your cart</title>
 <meta name="robots" content="noindex">
@@ -12,6 +12,14 @@
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <script>try{document.documentElement.dataset.shopTheme=localStorage.getItem("shop-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}</script>
 <link rel="stylesheet" href="shop.css?v=premium-motion">
+<style>
+.checkout-items,.checkout-details,.checkout-summary{min-width:0}
+.checkout-contact{display:grid;gap:0 14px}
+@media(min-width:760px){
+  .cart.checkout-layout{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);align-items:start}
+  .checkout-contact{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+</style>
 </head>
 <body>
 <a href="#main-content" class="skip-link">Skip to content</a>
@@ -56,7 +64,7 @@
 renderSiteHeader('cart');
 const box=$('#cart');let lines=[],renderVersion=0,submitting=false,refreshing=false,draft=null,coupon='',quote=null,pendingCartEdits=0;
 const lineHtml=l=>{const p=l.product,im=(p.images||[])[0],o=stockOf(p)==='out';
-return `<div class="cl" data-id="${esc(l.product_id)}">${im?`<img src="${esc(im)}" alt="${esc(p.name)}">`:`<div class="ph">${ic('box')}</div>`}<div class="info"><b>${esc(p.name)}</b><span class="small muted">${money(p.selling_price)} each</span>${o?'<div class="small" style="color:var(--bad);font-weight:600">Out of stock. Remove it to continue.</div>':''}<br><button class="rm" data-rm>Remove</button></div><div style="text-align:right"><div class="qty"><button data-q="-1" aria-label="Less">${ic('minus')}</button><span>${l.quantity}</span><button data-q="1" aria-label="More" ${o||l.quantity>=cartLimit(p.id)?'disabled':''}>${ic('plus')}</button></div><div class="price" style="margin-top:6px">${money(l.quantity*Number(p.selling_price))}</div></div></div>`};
+return `<div class="cl" data-id="${esc(l.product_id)}">${im?`<img src="${esc(im)}" alt="${esc(p.name)}">`:`<div class="ph">${ic('box')}</div>`}<div class="info"><b>${esc(p.name)}</b><span class="small muted">${money(p.selling_price)} each</span>${o?'<div class="small" style="color:var(--bad);font-weight:600">Out of stock. Remove it to continue.</div>':''}<br><button type="button" class="rm" data-rm>Remove</button></div><div style="text-align:right"><div class="qty"><button type="button" data-q="-1" aria-label="Less">${ic('minus')}</button><span>${l.quantity}</span><button type="button" data-q="1" aria-label="More" ${o||l.quantity>=cartLimit(p.id)?'disabled':''}>${ic('plus')}</button></div><div class="price" style="margin-top:6px">${money(l.quantity*Number(p.selling_price))}</div></div></div>`};
 function captureDraft(){const f=$('#co');if(f)draft={...readDelivery(f.elements),name:f.elements.name.value,phone:f.elements.phone.value};}
 async function render(){
 const version=++renderVersion;captureDraft();refreshing=true;if($('#co-btn'))$('#co-btn').disabled=true;
@@ -83,18 +91,28 @@ if(!session || session.user.is_anonymous){
 }
 const metadata=session.user.user_metadata || {};
 const c=draft || {name:metadata.full_name || metadata.name, ...metadata.delivery};
-box.innerHTML=`<div class="cart"><div>${cartItems}</div>
-<form class="card" id="co" novalidate>${missing?'<p class="msg bad">Some items are no longer available. <button type="button" class="btn sm" id="remove-missing">Remove unavailable items</button></p>':''}<h2 class="checkout-title">Order summary</h2>
+box.innerHTML=`<form class="cart checkout-layout" id="co" novalidate>
+<div class="checkout-items">
+<div>${cartItems}</div>
+<section class="card checkout-details" aria-labelledby="checkout-details-heading">
+<h2 class="checkout-title" id="checkout-details-heading">Contact and delivery</h2>
+<div class="checkout-contact">
+<label class="field"><span>Full name</span><input class="in" name="name" autocomplete="name" maxlength="100" value="${esc(c.name||'')}" placeholder="Your name"></label>
+<label class="field"><span>Phone number</span><input class="in" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" value="${esc(c.phone||'')}" placeholder="+971 50 123 4567"></label>
+</div>
+<h3 class="checkout-title">Delivery address</h3>
+${deliveryInputs(c)}
+</section>
+</div>
+<section class="card checkout-summary" aria-labelledby="checkout-summary-heading">
+${missing?'<p class="msg bad">Some items are no longer available. <button type="button" class="btn sm" id="remove-missing">Remove unavailable items</button></p>':''}<h2 class="checkout-title" id="checkout-summary-heading">Order summary</h2>
 <div class="sum"><span class="muted">Items</span><span>${lines.reduce((n,l)=>n+l.quantity,0)}</span></div>
 <label class="field"><span>Coupon code</span><div class="coupon-row"><input class="in" id="coupon" maxlength="32" value="${esc(coupon)}"><button class="btn" id="apply-coupon" type="button">Apply</button></div></label>
 <div class="sum"><span>Subtotal</span><span>${money(total)}</span></div><div class="sum"><span>Discount</span><span>−${money(quote?.discount_total||0)}</span></div><div class="sum"><span>Delivery</span><span>${quote?money(quote.delivery_charge):'Unavailable'}</span></div><div class="sum t"><span>Total</span><span>${quote?money(quote.total):'Unavailable'}</span></div>${pricingError?`<p class="msg bad">${esc(pricingError)} <button class="btn" type="button" id="retry-cart">Retry</button></p>`:''}
 <p class="help">Prices and stock are checked securely when you place your order. No online payment is needed.</p>
-<label class="field"><span>Full name</span><input class="in" name="name" autocomplete="name" maxlength="100" value="${esc(c.name||'')}" placeholder="Your name"></label>
-<label class="field"><span>Phone number</span><input class="in" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" value="${esc(c.phone||'')}" placeholder="+971 50 123 4567"></label>
-<h2 class="checkout-title">Delivery details</h2>
-${deliveryInputs(c)}
 <div class="err" id="co-err" role="alert" hidden></div>
-<button class="btn dark wide" type="submit" id="co-btn" ${blocked?'disabled':''}>Place order</button></form></div>`}
+<button class="btn dark wide" type="submit" id="co-btn" ${blocked?'disabled':''}>Place order</button></section>
+</form>`}
 box.addEventListener('click',e=>{if(submitting)return;if(e.target.closest('#apply-coupon')){coupon=$('#coupon').value.trim().toUpperCase();render();return}if(e.target.closest('#retry-cart')){render();return}if(e.target.closest('#remove-missing')){Shop.cart.save(Shop.cart.get().filter(i=>lines.some(l=>l.product_id===i.product_id)));render();return}const row=e.target.closest('.cl');if(!row)return;const id=row.dataset.id;
 const remove=e.target.closest('[data-rm]'),step=e.target.closest('[data-q]');
 if(!remove&&(!step||step.disabled))return;
