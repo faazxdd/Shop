@@ -248,7 +248,7 @@ button,input,select,textarea{font-family:inherit}
 /* Checkout overlay */
 .fz-checkout-overlay {
   box-sizing: border-box;
-  width: min(400px, calc(100% - 32px));
+  width: min(320px, calc(100% - 40px));
   max-height: calc(100% - 32px);
   padding: 0;
   border: 1px solid var(--s2);
@@ -258,37 +258,41 @@ button,input,select,textarea{font-family:inherit}
   box-shadow: 0 20px 55px rgb(0 0 0 / 28%);
 }
 .fz-checkout-overlay::backdrop {
-  background: rgb(12 18 32 / 60%);
+  background: rgb(12 18 32 / 46%);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
 .fz-checkout-overlay[open] { animation: fz-checkout-enter .24s ease-out both; }
-.fz-checkout-card { padding: clamp(20px, 6vw, 30px); text-align: center; }
-.fz-checkout-card h2 { font-size: 1.35rem; line-height: 1.2; }
-.fz-checkout-card p { margin-top: 8px; }
-.fz-spinner, .fz-checkmark-badge { margin: 0 auto 16px; border-radius: 50%; }
+.fz-checkout-overlay:has(#fzCheckoutConfirmed[hidden]) {
+  width: min(244px, calc(100% - 40px));
+}
+.fz-checkout-card { padding: 20px 16px; text-align: center; }
+.fz-checkout-card h2 { font-size: 1.125rem; line-height: 1.25; }
+#fzCheckoutTitle:focus { outline: none; }
+.fz-checkout-card p { margin-top: 6px; font-size: .875rem; }
+.fz-spinner, .fz-checkmark-badge { margin: 0 auto 10px; border-radius: 50%; }
 .fz-spinner {
-  width: 64px;
-  height: 64px;
+  width: 32px;
+  height: 32px;
   background:
-    radial-gradient(circle, var(--paper) 0 26px, transparent 27px),
+    radial-gradient(circle, var(--paper) 0 12.5px, transparent 13.5px),
     conic-gradient(from 45deg, var(--accent-bg) 0 22%, var(--blue) 82% 97%, var(--accent-bg) 100%);
   animation: fz-checkout-spin .95s linear infinite;
 }
 .fz-checkmark-badge {
   display: grid;
   place-items: center;
-  width: 64px;
-  height: 64px;
+  width: 40px;
+  height: 40px;
   background: var(--okb);
   color: var(--ok);
-  font-size: 28px;
+  font-size: 21px;
   font-weight: 700;
   animation: fz-checkout-enter .32s cubic-bezier(.2,.8,.2,1.2) both;
 }
 #fzCheckoutConfirmed { animation: fz-checkout-enter .24s ease-out both; }
 #fzCheckoutSummary { font-weight: 700; }
-.fz-checkout-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.fz-checkout-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 @keyframes fz-checkout-spin { to { transform: rotate(360deg); } }
 @keyframes fz-checkout-enter {
   from { opacity: 0; transform: translateY(6px) scale(.98); }
