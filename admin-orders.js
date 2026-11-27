@@ -86,9 +86,17 @@
     let area = document.getElementById('print-area');
     if (!area) { area = document.createElement('div'); area.id = 'print-area'; document.body.appendChild(area); }
     area.innerHTML = innerHtml;
+    const finish = () => {
+      document.body.classList.remove('printing-doc');
+      area.replaceChildren();
+      window.removeEventListener('afterprint', finish);
+    };
     document.body.classList.add('printing-doc');
-    window.addEventListener('afterprint', () => document.body.classList.remove('printing-doc'), { once: true });
-    try { window.print(); } catch { document.body.classList.remove('printing-doc'); toast('Printing is not available on this device', 'error'); }
+    window.addEventListener('afterprint', finish, { once: true });
+    try { window.print(); } catch {
+      finish();
+      toast('Printing is unavailable. Open the PDF from the order to print it.', 'error');
+    }
   }
   function docShell(title, inner) { return inner; }
   function slipHtml(o, shop) {
@@ -445,28 +453,27 @@
     `);
 
     const documentButtons = $$('[data-print], [data-preview]', body);
-    for (const button of documentButtons) button.disabled = true;
-    getShop().then(shop => {
-      for (const button of documentButtons) {
-        button.disabled = false;
-        button.onclick = () => {
-          if (button.dataset.print) {
-            printDoc(button.dataset.print === 'bill' ? billHtml(o, shop) : slipHtml(o, shop));
-            return;
-          }
-          const file = button.dataset.preview === 'bill' ? billPdfFile(o, shop) : slipPdf(o, shop);
-          const url = URL.createObjectURL(file);
-          const link = document.createElement('a');
-          link.href = url;
-          link.target = '_blank';
-          link.rel = 'noopener';
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          setTimeout(() => URL.revokeObjectURL(url), 60000);
-        };
-      }
-    });
+    for (const button of documentButtons) {
+      button.onclick = () => {
+        // Keep print and PDF opening inside the tap, even while settings are loading.
+        const shop = shopCfg || { business_name: 'FC Cart' };
+        if (button.dataset.print) {
+          printDoc(button.dataset.print === 'bill' ? billHtml(o, shop) : slipHtml(o, shop));
+          return;
+        }
+        const file = button.dataset.preview === 'bill' ? billPdfFile(o, shop) : slipPdf(o, shop);
+        const url = URL.createObjectURL(file);
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      };
+    }
+    void getShop();
     const shareBtn = $('#share-bill', body);
     if (shareBtn) shareBtn.onclick = () => withBusy(shareBtn, async () => {
       try {
@@ -591,9 +598,82 @@
     tone.stop(now + 0.56);
   }
 
+  let stopOrderAlerts;
+
   function startRealtime() {
+    stopOrderAlerts?.();
     refreshBadge();
+    void getShop();
+    const alert = $('#order-alert');
+    const message = $('#order-alert-message');
+    const view = $('#view-new-order');
     const sound = $('#order-sound');
+    const pending = new Map();
+    const seen = new Set();
+    let stopped = false;
+    let polling = false;
+    const startedAt = Date.now();
+
+    function renderAlert() {
+      const order = pending.values().next().value;
+      alert.hidden = !order;
+      const remaining = pending.size - 1;
+      message.textContent = order
+        ? `New order #${order.order_number}${remaining ? ` (+${remaining} more)` : ''}`
+        : '';
+    }
+
+    function refreshOrders() {
+      refreshBadge();
+      if (currentTab === 'orders' && reloadList) reloadList();
+    }
+
+    function notify(order) {
+      if (stopped || !order.id || seen.has(order.id)) return;
+      seen.add(order.id);
+      pending.set(order.id, order);
+      renderAlert();
+      orderChime();
+      refreshOrders();
+    }
+
+    // Some projects do not publish orders to Realtime. Check recent arrivals
+    // while the admin is visible and deduplicate against both delivery paths.
+    async function pollOrders() {
+      if (stopped || polling || document.hidden) return;
+      polling = true;
+      try {
+        const { data, error } = await sb.from('orders').select('id,order_number,created_at')
+          .order('created_at', { ascending: false }).order('id').limit(50);
+        if (error || stopped) return;
+        for (const order of [...data].reverse()) {
+          if (Date.parse(order.created_at) >= startedAt) notify(order);
+        }
+      } finally {
+        polling = false;
+      }
+    }
+
+    $('#dismiss-order-alert').onclick = () => {
+      pending.delete(pending.keys().next().value);
+      renderAlert();
+    };
+    view.onclick = () => withBusy(view, async () => {
+      const id = pending.keys().next().value;
+      if (!id) return;
+      try {
+        const order = throwIfError(await sb.from('orders').select('*, order_items(*)').eq('id', id).single());
+        if (stopped) return;
+        showTab('orders');
+        orderDetail(order, refreshOrders);
+        pending.delete(id);
+        renderAlert();
+      } catch (err) {
+        if (!stopped) toast(errMsg(err), 'error');
+      }
+    });
+
+    sound.setAttribute('aria-checked', String(audio?.state === 'running'));
     sound.onclick = async () => {
       sound.disabled = true;
       try {
@@ -604,25 +684,29 @@
           orderChime();
         }
       } catch { toast('Sound could not be enabled on this device', 'error'); }
-      const enabled = audio?.state === 'running';
-      sound.setAttribute('aria-checked', String(enabled));
+      sound.setAttribute('aria-checked', String(audio?.state === 'running'));
       sound.disabled = false;
     };
-    sb.channel('admin-orders')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, payload => {
-        const o = payload.new;
-        toast(`New order #${o.order_number} received`, 'success');   // total is filled in a moment later
-        try { if (navigator.vibrate) navigator.vibrate(120); } catch { /* ignore */ }
-        orderChime();
-        refreshBadge();
-        if (currentTab === 'orders' && reloadList) reloadList();
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, () => {
-        refreshBadge();
-        if (currentTab === 'orders' && reloadList) reloadList();
-      })
+    const channel = sb.channel('admin-orders')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, payload => notify(payload.new))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, refreshOrders)
       .subscribe();
+    const timer = setInterval(pollOrders, 30000);
+    document.addEventListener('visibilitychange', pollOrders);
+    void pollOrders();
+
+    stopOrderAlerts = () => {
+      stopped = true;
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', pollOrders);
+      alert.hidden = true;
+      pending.clear();
+      void sb.removeChannel(channel);
+    };
   }
 
+  sb.auth.onAuthStateChange(event => {
+    if (event === 'SIGNED_OUT') stopOrderAlerts?.();
+  });
   (window.onAdminReady = window.onAdminReady || []).push(startRealtime);
 })();

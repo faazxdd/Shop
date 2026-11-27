@@ -72,3 +72,48 @@ test('image finder requires explicit approval and product save',async({page})=>{
  await page.getByRole('button',{name:'Approve image for this product'}).click();await expect(page.locator('#imgs .image-tile')).toHaveCount(1);expect(saves).toBe(0);
  await page.locator('#save').click();await expect(page.getByRole('dialog')).toBeHidden();expect(saves).toBe(1);expect(payload.p_initial_quantity).toBe(5);expect(payload.p_product.attributes).toEqual({Colour:'Black',Storage:'256 GB'});expect(payload.p_product.images).toEqual(['https://upload.wikimedia.org/authorized-example.jpg']);
 });
+
+test('new order alert deduplicates and opens the matching printable order', async ({page}) => {
+ await page.setViewportSize({width: 390, height: 844});
+ const {order} = await adminMock(page);
+ const newOrder = {...order, order_number: 1002, created_at: new Date().toISOString()};
+ let recentOrders = [{...order, id: '20000000-0000-0000-0000-000000000002'}];
+ let lookups = 0;
+ await page.clock.install();
+ await page.route('**/rest/v1/orders?*', route => {
+  const params = new URL(route.request().url()).searchParams;
+  if (params.get('id') === 'eq.' + orderId) {
+   lookups++;
+   return route.fulfill({json: newOrder});
+  }
+  return route.fulfill({json: recentOrders, headers: {'content-range': '0-0/1'}});
+ });
+ await page.goto('/admin.html');
+ const sound = page.getByRole('switch', {name: 'New order sound'});
+ await sound.click();
+ await expect(sound).toHaveAttribute('aria-checked', 'true');
+ await expect(page.locator('#order-alert')).toBeHidden();
+
+ newOrder.created_at = await page.evaluate(() => new Date(Date.now() + 1000).toISOString());
+ recentOrders = [newOrder];
+ await page.clock.fastForward(30000);
+ await expect(page.locator('#order-alert-message')).toHaveText('New order #1002');
+ await page.getByRole('button', {name: 'View order', exact: true}).click();
+ const details = page.getByRole('dialog', {name: 'Order #1002'});
+ await expect(details).toBeVisible();
+ expect(lookups).toBe(1);
+ await page.evaluate(() => {
+  window.print = () => {
+   window.printedDocument = document.querySelector('#print-area').textContent;
+   window.dispatchEvent(new Event('afterprint'));
+  };
+ });
+ for (const label of ['Print delivery slip', 'Print bill']) {
+  await details.getByRole('button', {name: label, exact: true}).click();
+  expect(await page.evaluate(() => window.printedDocument)).toContain('Order #1002');
+  await expect(page.locator('#print-area')).toBeEmpty();
+ }
+ await expect(page.locator('#order-alert')).toBeHidden();
+ await page.clock.fastForward(30000);
+ await expect(page.locator('#order-alert')).toBeHidden();
+});
