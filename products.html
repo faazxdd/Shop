@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-BV1NMqbKQKrrYPKF7D1/stnj7gJjt/4RDJSEzfCyPH8='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-BjneGI/qmcInvXxzHM/xfivqSd1l99XoX4l23H6i2lM='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Products | FZ Cart</title>
-<meta name="description" content="Browse FZ Cart products, compare AED prices, choose variants and place your order.">
+<title>Products | FC Cart</title>
+<meta name="description" content="Browse FC Cart products, compare AED prices, choose variants and place your order.">
 <meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -13,7 +13,7 @@
 <script>try{document.documentElement.dataset.shopTheme=localStorage.getItem("shop-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}</script>
 <link rel="stylesheet" href="shop.css?v=mobile3">
 <link rel="canonical" href="https://faazxdd.github.io/Shop/products.html">
-<meta property="og:title" content="FZ Cart">
+<meta property="og:title" content="FC Cart">
 <meta property="og:type" content="website">
 </head>
 <body>
@@ -29,7 +29,7 @@
   <select class="in" id="sort" aria-label="Sort" style="width:auto"><option value="name">Name A to Z</option><option value="price_asc">Price low to high</option><option value="price_desc">Price high to low</option></select>
 </div>
 <details class="catalog-filters"><summary>Filters</summary>
-<form id="filters" class="bar" aria-label="Product filters"><label class="field">Minimum AED<input id="min-price" class="in" type="number" min="0" step="0.01"></label><label class="field">Maximum AED<input id="max-price" class="in" type="number" min="0" step="0.01"></label><label><input id="in-stock" type="checkbox"> In stock only</label><button class="btn" type="submit">Apply filters</button><button class="btn" type="reset">Clear</button></form>
+<form id="filters" class="bar" aria-label="Product filters"><label class="field">Brand<select id="brand-filter" class="in"><option value="">All brands</option></select></label><label class="field">Minimum AED<input id="min-price" class="in" type="number" min="0" step="0.01"></label><label class="field">Maximum AED<input id="max-price" class="in" type="number" min="0" step="0.01"></label><label><input id="in-stock" type="checkbox"> In stock only</label><button class="btn" type="submit">Apply filters</button><button class="btn" type="reset">Clear</button></form>
 </details>
 </div>
 <div class="chips" id="cats" aria-label="Categories"></div>
@@ -40,18 +40,26 @@
 <footer id="site-footer"></footer>
 </div>
 <script src="vendor/supabase-2.110.1.js"></script>
-<script src="supabase.js"></script>
-<script src="shop.js?v=brand2"></script>
+<script src="supabase.js?v=collections"></script>
+<script src="shop.js?v=fc-brand"></script>
 <script>
 const P=new URLSearchParams(location.search),PAGE=24;
-const st={q:(P.get('q')||'').slice(0,80),cat:P.get('cat')||'',sort:['price_asc','price_desc'].includes(P.get('sort'))?P.get('sort'):'name',saved:P.get('saved')==='1',off:0};
+const st={q:(P.get('q')||'').slice(0,80),cat:P.get('cat')||'',brand:(P.get('brand')||'').slice(0,160),sort:['price_asc','price_desc'].includes(P.get('sort'))?P.get('sort'):'name',saved:P.get('saved')==='1',off:0};
 renderSiteHeader(st.saved?'saved':'shop');
 const grid=$('#products');let shown=0,requestId=0;
 $('#q').value=st.q;$('#sort').value=st.sort;if(P.get('focus'))setTimeout(()=>$('#q').focus(),50);
 if(st.saved){$('#p-title').textContent='Saved products';$('#p-sub').textContent='Your list'}
-function filters(){return {minPrice:$('#min-price').value,maxPrice:$('#max-price').value,inStock:$('#in-stock').checked}}
-$('#filters').onsubmit=e=>{e.preventDefault();fetchPage(true)};$('#filters').onreset=()=>setTimeout(()=>fetchPage(true));
-function sync(){const u=new URLSearchParams();if(st.q)u.set('q',st.q);if(st.cat)u.set('cat',st.cat);if(st.sort!=='name')u.set('sort',st.sort);if(st.saved)u.set('saved','1');history.replaceState(null,'',location.pathname+(u.toString()?'?'+u:''))}
+const brandFilter=$('#brand-filter');
+if(st.brand){brandFilter.add(new Option(st.brand,st.brand));brandFilter.value=st.brand;brandFilter.closest('details').open=true;}
+Shop.brands().then(brands=>{
+  const active=brandFilter.value;
+  brandFilter.replaceChildren(new Option('All brands',''));
+  for(const brand of new Set([...brands,...(active?[active]:[])]))brandFilter.add(new Option(brand,brand));
+  brandFilter.value=active;
+}).catch(console.error);
+function filters(){return {brand:st.brand,minPrice:$('#min-price').value,maxPrice:$('#max-price').value,inStock:$('#in-stock').checked}}
+$('#filters').onsubmit=e=>{e.preventDefault();st.brand=brandFilter.value;sync();fetchPage(true)};$('#filters').onreset=()=>setTimeout(()=>{brandFilter.value='';st.brand='';sync();fetchPage(true)});
+function sync(){const u=new URLSearchParams();if(st.q)u.set('q',st.q);if(st.cat)u.set('cat',st.cat);if(st.brand)u.set('brand',st.brand);if(st.sort!=='name')u.set('sort',st.sort);if(st.saved)u.set('saved','1');history.replaceState(null,'',location.pathname+(u.toString()?'?'+u:''))}
 async function fetchPage(reset){
 const request=++requestId;
 if(reset){st.off=0;shown=0;grid.innerHTML='<div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div>';$('#more').hidden=true}
