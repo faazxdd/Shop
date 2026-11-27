@@ -19,3 +19,22 @@
 .order-sound span::after { content:""; position:absolute; inset:3px auto 3px 3px; width:24px; background:white; border-radius:20px; box-shadow:0 1px 3px #0003; transition:transform .18s }
 .order-sound[aria-checked=true] span { background:#30c85a }
 .order-sound[aria-checked=true] span::after { transform:translateX(16px) }
+
+.order-alert {
+  position: fixed;
+  z-index: 120;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 12px);
+  max-width: calc(100% - 24px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px #0003;
+}
+.order-alert[hidden] { display: none; }
+.order-alert .btn { min-height: 44px; }

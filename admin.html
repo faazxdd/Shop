@@ -11,7 +11,7 @@
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script>try{var t=localStorage.getItem('theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="admin-design.css">
+  <link rel="stylesheet" href="admin-design.css?v=order-actions">
 </head>
 <body class="admin-body">
 <a href="#tab-content" class="skip-link">Skip to dashboard</a>
@@ -39,6 +39,11 @@
     </header>
     <nav class="admin-nav" id="nav" aria-label="Admin sections"></nav>
     <main class="admin-main" id="tab-content"></main>
+    <aside class="order-alert" id="order-alert" aria-label="New orders" hidden>
+      <strong id="order-alert-message" role="status"></strong>
+      <button class="btn btn-sm btn-primary" id="view-new-order" type="button">View order</button>
+      <button class="btn btn-sm" id="dismiss-order-alert" type="button">Dismiss</button>
+    </aside>
   </div>
 
   <script src="vendor/supabase-2.110.1.js"></script>
@@ -326,7 +331,7 @@
   </script>
 
   <!-- ADMIN-PARTS: more tabs are added here as separate files -->
-  <script src="admin-orders.js?v=order-alerts"></script>
+  <script src="admin-orders.js?v=order-actions"></script>
   <script src="admin-reports.js"></script>
   <script src="admin-settings.js"></script>
   <script src="admin-commerce.js"></script>
