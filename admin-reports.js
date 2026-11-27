@@ -36,10 +36,10 @@
           Created: stamp(p.created_at), Updated: stamp(p.updated_at) })) };
     } },
     { key: 'low', label: 'Low stock', async build() {
-        const ps = (await Admin.products()).filter(p => p.status !== 'archived' && p.quantity <= p.min_stock_alert);
+        const ps = (await Admin.products()).filter(p => p.status !== 'archived' && num(p.quantity) - num(p.reserved_quantity) <= num(p.min_stock_alert));
         return { name: 'low-stock', rows: ps.map(p => ({
-          SKU: p.sku || '', Product: p.name, 'On hand': p.quantity, 'Min alert': p.min_stock_alert,
-          Level: p.quantity === 0 ? 'Out of stock' : 'Low' })) };
+          SKU: p.sku || '', Product: p.name, 'On hand': p.quantity, Reserved: num(p.reserved_quantity), Available: num(p.quantity) - num(p.reserved_quantity), 'Min alert': p.min_stock_alert,
+          Level: num(p.quantity) - num(p.reserved_quantity) <= 0 ? 'Out of stock' : 'Low' })) };
     } },
     { key: 'valuation', label: 'Inventory valuation', async build() {
         const ps = (await Admin.products()).filter(p => p.status !== 'archived');
@@ -96,8 +96,10 @@
     const byProduct = {};
     let revenue = 0, costTotal = 0, unknown = 0;
     for (const o of orders) {
+      const subtotal = num(o.subtotal) || (o.order_items || []).reduce((sum, i) => sum + num(i.line_total), 0);
+      const ratio = subtotal > 0 ? Math.max(0, Math.min(1, num(o.discount_total) / subtotal)) : 0;
       for (const i of (o.order_items || [])) {
-        const qty = num(i.quantity), rev = num(i.line_total) * (1 - (num(o.discount_total) / (num(o.subtotal) || num(o.total) || 1)));
+        const qty = num(i.quantity), rev = num(i.line_total) * (1 - ratio);
         const known = i.id in cost;
         const c = known ? cost[i.id] * qty : 0;
         if (!known) unknown++;
