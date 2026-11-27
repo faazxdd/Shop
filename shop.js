@@ -35,6 +35,7 @@ function rememberProduct(id){try{localStorage.setItem('fz_recent',JSON.stringify
 async function shareProduct(p){const url=new URL('products.html',location.href);url.searchParams.set('product',p.id);try{if(navigator.share){await navigator.share({title:p.name,url:url.href});return}if(navigator.clipboard){await navigator.clipboard.writeText(url.href);toast('Product link copied','ok');return}}catch(e){if(e.name==='AbortError')return}window.prompt('Copy product link',url.href)}
 
 const stockOf=p=>/out/i.test(p.stock_status||'')?'out':/low/i.test(p.stock_status||'')?'low':'in';
+function cardQuantity(id){return Shop.cart.get().find(line=>line.product_id===id)?.quantity||0}
 function productCardHtml(p) {
   PC[p.id]=p;
   const stock=stockOf(p),image=(p.images||[])[0],saved=Shop.favs.has(p.id),id=esc(p.id);
@@ -44,7 +45,7 @@ function productCardHtml(p) {
     <button class="hb ${saved?'on':''}" data-fav="${id}" aria-pressed="${saved}" aria-label="Save ${esc(p.name)}">${ic('heart',saved)}</button>
     </div><div class="pm">${esc(p.category_name||'')}</div><h3 class="pt"><button class="product-title-button" data-open="${id}">${esc(p.name)}</button></h3></div>
     <div class="pf"><span class="price">${money(p.selling_price)}${p.compare_at_price>p.selling_price?`<del>${money(p.compare_at_price)}</del><small class="offer">Save ${Math.round((1-p.selling_price/p.compare_at_price)*100)}%</small>`:''}</span>
-    <button class="btn dark sm" data-add="${id}" ${stock==='out'?'disabled':''}>${ic('plus')}Add</button></div></article>`;
+    <button class="btn sm" style="touch-action:manipulation;background:#fff;color:#142029;border:1px solid #cbd2d8;white-space:nowrap" data-add="${id}" ${stock==='out'?'disabled':''}>${ic('plus')}<span data-add-label>${cardQuantity(p.id)||'Add'}</span></button></div></article>`;
 }
 async function openProduct(id){let p=PC[id];if(!p){try{p=await Shop.product(id)}catch(e){return toast(errMsg(e),'bad')}}if(!p)return toast('Product is no longer available','bad');PC[id]=p;rememberProduct(id);
 const im=p.images||[],s=stockOf(p),sv=Shop.favs.has(p.id);let q=1;
@@ -56,7 +57,7 @@ $('#pq-').onclick=()=>$('#pq').textContent=q=Math.max(1,q-1);$('#pq\\+').onclick
 $('#pq-add').onclick=()=>{Shop.cart.add(p.id,q);closeSheet();toast('Added to cart','ok')}}
 document.addEventListener('click',e=>{
 const f=e.target.closest('[data-fav]');if(f){e.preventDefault();e.stopPropagation();const id=f.dataset.fav,on=Shop.favs.toggle(id);$$('[data-fav]').forEach(b=>{if(b.dataset.fav===id){b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));b.innerHTML=ic('heart',on)+(b.classList.contains('btn')?(on?'Saved':'Save'):'')}});toast(on?'Saved for later':'Removed from saved');return}
-const a=e.target.closest('[data-add]');if(a){if(a.disabled||stockOf(PC[a.dataset.add]||{})==='out')return;e.stopPropagation();Shop.cart.add(a.dataset.add,1);toast('Added to cart','ok');return}
+const a=e.target.closest('[data-add]');if(a){if(a.disabled||stockOf(PC[a.dataset.add]||{})==='out')return;e.stopPropagation();try{Shop.cart.add(a.dataset.add,1)}catch(error){toast(errMsg(error),'bad')}return}
 const o=e.target.closest('[data-open]');if(o)openProduct(o.dataset.open)});
 
 /* ---------- header, dock, footer, settings ---------- */
@@ -70,7 +71,18 @@ $('#site-footer').className='ft';
 $('#site-footer').innerHTML=`<b data-biz>FC Cart</b><a href="products.html">Products</a><a href="orders.html">Orders</a><a href="account.html">My account</a><div id="f-contact"></div><div class="cp">&copy; ${new Date().getFullYear()} <span data-biz>FC Cart</span></div>`;
 if(!$('.dock')){const d=document.createElement('nav');d.className='dock';d.setAttribute('aria-label','Quick navigation');d.innerHTML=NAV.map(n=>`<a href="${n[1]}" class="${n[0]===active?'on':''}">${ic(n[3])}<span>${n[2].replace('My orders','Orders')}</span>${n[0]==='cart'?'<i class="cnt" data-cartcount></i>':''}</a>`).join('');document.body.append(d)}
 counts();const toggle=$('#theme-switch');function paintTheme(){const dark=document.documentElement.dataset.shopTheme==='dark';toggle.innerHTML=ic(dark?'sun':'moon');toggle.setAttribute('aria-label',dark?'Switch to light mode':'Switch to dark mode');document.querySelector('meta[name="theme-color"]').content=dark?'#101010':'#ffffff'}toggle.onclick=()=>{const next=document.documentElement.dataset.shopTheme==='dark'?'light':'dark';document.documentElement.dataset.shopTheme=next;try{localStorage.setItem('shop-theme',next)}catch{}paintTheme()};paintTheme()}
-window.addEventListener('cart-changed',counts);window.addEventListener('favs-changed',counts);
+function updateCardQuantities(){
+  const quantities=new Map(Shop.cart.get().map(line=>[line.product_id,line.quantity]));
+  for(const button of document.querySelectorAll('[data-add]')){
+    const label=button.querySelector('[data-add-label]');
+    if(!label)continue;
+    const quantity=quantities.get(button.dataset.add)||0;
+    label.textContent=quantity||'Add';
+    button.setAttribute('aria-label',quantity?`Add one more. ${quantity} in cart`:'Add one to cart');
+  }
+}
+window.addEventListener('cart-changed',()=>{counts();updateCardQuantities()});
+window.addEventListener('storage',event=>{if(event.key===Shop.cart.KEY)updateCardQuantities()});window.addEventListener('favs-changed',counts);
 async function applyBusinessSettings(){
 try{const s=await Shop.settings();if(!s)return null;window._shopSettings=s;
 const n=/^fz\s*cart$/i.test(s.business_name||'')?'FC Cart':s.business_name||'FC Cart';$$('[data-biz]').forEach(e=>e.textContent=n);
