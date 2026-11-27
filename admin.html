@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-p7xaUTbWED71Z4WMLqQY/PD6h7haah2ESFDOETyjNEI=' 'sha256-bP502YDrdqcp2QdjI8S97TeasluiCQNzuDB5e1sry7E=' 'sha256-E1NOlwZWGvBLtpbCF7YUHM2/XrRM7TcYr/D9eoq+ZBs='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-p7xaUTbWED71Z4WMLqQY/PD6h7haah2ESFDOETyjNEI=' 'sha256-8ePXDY1uUtRmes5bfKOHYwRW2ZVQOoaXuiCpmiyItEg=' 'sha256-E1NOlwZWGvBLtpbCF7YUHM2/XrRM7TcYr/D9eoq+ZBs='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>FZ Cart | Admin</title>
   <meta name="robots" content="noindex,nofollow">
@@ -142,18 +142,29 @@
           <div id="p-list"></div>`;
         const list = $('#p-list');
         let busy = false;
+        const pending = new Map();
+        const stockFloor = p => Number(p.reserved_quantity || 0);
+        const quickControls = p => `
+          <div class="row wrap" style="gap:6px;margin-top:8px">
+            <div class="row" style="gap:4px" role="group" aria-label="Stock for ${esc(p.name)}">
+              <button type="button" class="btn btn-sm" style="min-width:44px;min-height:44px" data-stock-step="out" aria-label="Remove one from stock" ${p.quantity <= stockFloor(p) ? 'disabled' : ''}>−</button>
+              <output style="min-width:2ch;text-align:center" aria-label="Stock on hand">${p.quantity}</output>
+              <button type="button" class="btn btn-sm" style="min-width:44px;min-height:44px" data-stock-step="in" aria-label="Add one to stock">+</button>
+            </div>
+            ${p.status !== 'archived' ? `<button type="button" class="btn btn-sm" style="min-height:44px" data-quick-status>${p.status === 'published' ? 'Set draft' : 'Publish'}</button>` : ''}
+          </div>`;
         const selected = () => [...list.querySelectorAll('[data-select]:checked')].map(x => x.value);
         function sync() {
           const boxes = [...list.querySelectorAll('[data-select]')], n = selected().length;
           $('#p-count').textContent = n + ' selected';
           $('#p-all').checked = boxes.length > 0 && n === boxes.length;
           $('#p-all').indeterminate = n > 0 && n < boxes.length;
-          $('#p-archive').disabled = $('#p-delete').disabled = busy || !n;
+          $('#p-archive').disabled = $('#p-delete').disabled = busy || !!pending.size || !n;
         }
         $('#p-all').onchange = e => { list.querySelectorAll('[data-select]').forEach(x => x.checked = e.target.checked); sync(); };
         list.onchange = sync;
         async function bulk(archive) {
-          if (busy) return;
+          if (busy || pending.size) return;
           const ids = selected(); if (!ids.length) return;
           if (!confirm(`${archive ? 'Archive' : 'Permanently delete'} ${ids.length} selected products? ${archive ? 'They will disappear from the shop.' : 'Products with linked history may be blocked. This cannot be undone.'}`)) return;
           if (!archive && prompt('Type DELETE to confirm permanent deletion') !== 'DELETE') return;
@@ -171,6 +182,55 @@
         $('#p-delete').onclick = () => bulk(false);
 
 
+        function productBadges(p) {
+          return `${productStatusBadge(p.status)}${p.reserved_quantity ? `<span class="badge">${p.reserved_quantity} reserved</span>` : ''}`;
+        }
+
+        function queueQuickChange(card, product, step) {
+          const id = product.id;
+          const next = (pending.get(id) || Promise.resolve()).then(async () => {
+            try {
+              if (step) {
+                await Admin.stockMove(id, step, 1, 'Products list quick adjustment');
+              } else {
+                const status = product.status === 'published' ? 'draft' : 'published';
+                const result = throwIfError(await sb.from('products').update({status})
+                  .eq('id', id).eq('status', product.status).select('status').maybeSingle());
+                if (!result) throw new Error('Product status changed. Refresh Products and try again.');
+                product.status = result.status;
+              }
+              if (step) {
+                const result = throwIfError(await sb.from('products')
+                  .select('quantity,reserved_quantity').eq('id', id).single());
+                Object.assign(product, result);
+              }
+              if (card.isConnected) {
+                card.querySelector('[data-product-badges]').innerHTML = productBadges(product);
+                const controls = card.querySelector('[data-quick-controls]');
+                controls.querySelector('output').textContent = product.quantity;
+                controls.querySelector('[data-stock-step="out"]').disabled = product.quantity <= stockFloor(product);
+                const statusButton = controls.querySelector('[data-quick-status]');
+                if (statusButton) statusButton.textContent = product.status === 'published' ? 'Set draft' : 'Publish';
+              }
+            } catch (err) {
+              toast(errMsg(err), 'error');
+            }
+          });
+          pending.set(id, next);
+          sync();
+          next.finally(() => {
+            if (pending.get(id) !== next) return;
+            pending.delete(id);
+            if (!card.isConnected) {
+              if (list.isConnected && !pending.size) load();
+              return;
+            }
+            const statusButton = card.querySelector('[data-quick-status]');
+            if (statusButton) statusButton.disabled = false;
+            sync();
+          });
+        }
+
         async function load() {
           list.innerHTML = '<div class="skeleton"></div>';
           try {
@@ -183,10 +243,10 @@
                   <div class="title">${esc(p.name)}</div>
                   <div class="muted small">${esc(p.sku || 'No SKU')} &middot; ${esc(p.categories?.name || 'No category')}</div>
                   <div class="small">${money(p.selling_price)} <span class="muted">(cost ${money(p.purchase_price)})</span></div>
-                  <div class="row wrap" style="gap:6px;margin-top:4px">
-                    ${productStatusBadge(p.status)}
-                    <span class="badge ${p.quantity === 0 ? 'badge-danger' : p.quantity <= p.min_stock_alert ? 'badge-warning' : 'badge-success'}">Stock ${p.quantity}${p.reserved_quantity ? ` (${p.reserved_quantity} reserved)` : ''}</span>
+                  <div data-product-badges class="row wrap" style="gap:6px;margin-top:4px">
+                    ${productBadges(p)}
                   </div>
+                  <div data-quick-controls>${quickControls(p)}</div>
                 </div>
                 <div class="stack" style="min-width:76px">
                   <button class="btn btn-sm" data-stock>Stock</button>
@@ -200,8 +260,17 @@
         list.onclick = e => {
           const card = e.target.closest('.list-card'); if (!card) return;
           const p = list._rows[card.dataset.id];
-          if (e.target.closest('[data-edit]')) productForm(p, load);
-          else if (e.target.closest('[data-stock]')) stockForm(p, load);
+          if (busy || !p) return;
+          const step = e.target.closest('[data-stock-step]');
+          const statusButton = e.target.closest('[data-quick-status]');
+          if (step) queueQuickChange(card, p, step.dataset.stockStep);
+          else if (statusButton) {
+            statusButton.disabled = true;
+            queueQuickChange(card, p);
+          } else if (!pending.has(p.id)) {
+            if (e.target.closest('[data-edit]')) productForm(p, load);
+            else if (e.target.closest('[data-stock]')) stockForm(p, load);
+          }
         };
         $('#p-add').onclick = () => productForm(null, load);
         $('#p-search').oninput = debounce(load, 350);
