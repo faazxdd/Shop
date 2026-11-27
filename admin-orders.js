@@ -603,7 +603,7 @@
   /* ---------- Pending-orders badge + realtime ---------- */
   async function refreshBadge() {
     const badge = $('#orders-badge');
-    if (!badge) return;
+    if (!badge || $('#app-view')?.hidden) return;
     const { count, error } = await sb.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'pending');
     if (error) return;
     badge.textContent = count > 99 ? '99+' : String(count);
@@ -656,7 +656,15 @@
         refreshBadge();
         if (currentTab === 'orders' && reloadList) reloadList();
       })
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          refreshBadge();
+          if (currentTab === 'orders' && reloadList) reloadList();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Orders realtime connection issue', status, err);
+          if (!$('#app-view')?.hidden) toast('Live order updates interrupted. Refresh Orders to check new orders.', 'error');
+        }
+      });
   }
 
   (window.onAdminReady = window.onAdminReady || []).push(startRealtime);
