@@ -268,17 +268,18 @@ button,input,select,textarea{font-family:inherit}
 .fz-checkout-card p { margin-top: 8px; }
 .fz-spinner, .fz-checkmark-badge { margin: 0 auto 16px; border-radius: 50%; }
 .fz-spinner {
-  width: 46px;
-  height: 46px;
-  border: 4px solid var(--accent-bg);
-  border-top-color: var(--blue);
-  animation: fz-checkout-spin .8s linear infinite;
+  width: 64px;
+  height: 64px;
+  background:
+    radial-gradient(circle, var(--paper) 0 26px, transparent 27px),
+    conic-gradient(from 45deg, var(--accent-bg) 0 22%, var(--blue) 82% 97%, var(--accent-bg) 100%);
+  animation: fz-checkout-spin .95s linear infinite;
 }
 .fz-checkmark-badge {
   display: grid;
   place-items: center;
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   background: var(--okb);
   color: var(--ok);
   font-size: 28px;
