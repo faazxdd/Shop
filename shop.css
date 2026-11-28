@@ -473,3 +473,33 @@ body, .pc { font-family: var(--sp); }
   .intro-image button { min-height: 0; padding: 10px; }
   .intro-image img { height: 148px; }
 }
+
+/* Give catalogue actions a distinct shape and a two-tone cart control. */
+.pc [data-card-cart] .btn {
+  border-radius: 999px;
+  padding-inline: 13px;
+  gap: 7px;
+  font-weight: 750;
+}
+.pc [data-card-cart] > [data-add]:not(:disabled) {
+  border-color: var(--action);
+  background: var(--action);
+  color: var(--on-action);
+}
+.pc [data-card-cart] > [data-add] svg {
+  width: 19px;
+  height: 19px;
+  padding: 3px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--on-action) 19%, transparent);
+}
+.pc [data-card-cart] > [data-add]:hover:not(:disabled) {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: var(--paper);
+}
+.acts .ib { border-radius: 50%; }
+.intro-copy > .btn, .acts > .btn, #pq-add {
+  border-radius: 999px;
+  padding-inline: 18px;
+}
