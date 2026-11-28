@@ -461,3 +461,15 @@ body, .pc { font-family: var(--sp); }
   .product-image-button img { transition: transform 330ms cubic-bezier(.2,.7,.3,1); }
   .product-image-button:hover img { transform: scale(1.12); }
 }
+
+:root:not([data-shop-theme=dark]) :is(.intro-image, .product-image-button) img {
+  mix-blend-mode: multiply;
+}
+@media (max-width: 719px) {
+  .shop-intro { min-height: 0; }
+  .intro-copy { padding: 24px; }
+  .shop-intro h1 { font-size: clamp(40px, 11vw, 62px); margin-bottom: 16px; }
+  .shop-intro .search { margin-top: 14px; }
+  .intro-image button { min-height: 0; padding: 10px; }
+  .intro-image img { height: 148px; }
+}
