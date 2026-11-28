@@ -260,7 +260,7 @@ const Shop = {
     });
     if (error) {
       // Only known checkout validation failures prove the transaction rolled back.
-      if (error.code === 'P0001' && /^(Coupon|Not enough stock|Invalid |A product is no longer available)/i.test(error.message)) {
+      if (error.code === 'PT429' || (error.code === 'P0001' && /^(Coupon|Not enough stock|Invalid |A product is no longer available)/i.test(error.message))) {
         sessionStorage.setItem('checkout_rejected','1');
       }
       throw new Error(friendlyOrderError(error));

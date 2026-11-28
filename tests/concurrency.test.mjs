@@ -37,5 +37,13 @@ test('PostgreSQL 17 concurrent orders never oversell or redeem a coupon twice',{
  assert.equal(coupon.filter(r=>r.status==='fulfilled').length,1);
  const row=(await admin.query(`select quantity,reserved_quantity from products where id='10000000-0000-0000-0000-000000000002'`)).rows[0];assert.equal(row.quantity,10);assert.equal(row.reserved_quantity,2);
  assert.equal((await admin.query("select uses from coupons where code='ONCE'")).rows[0].uses,1);
+ const limited=await Promise.allSettled(clients.slice(1).map((c,i)=>call(c,'10000000-0000-0000-0000-000000000002','parallel-limit-'+i)));
+ assert.equal(limited.filter(r=>r.status==='fulfilled').length,2);
+ const denied=limited.filter(r=>r.status==='rejected');
+ assert.equal(denied.length,6);
+ assert.ok(denied.every(r=>r.reason.code==='PT429'));
+ const retry=await call(clients[1],'10000000-0000-0000-0000-000000000002','same-idempotency-key');
+ assert.equal(retry.rows[0].o.order_id,same[0].rows[0].o.order_id);
+ assert.equal((await admin.query('select count(*)::int as count from orders where customer_id=$1',[userId])).rows[0].count,5);
  }finally{await Promise.allSettled(clients.map(c=>c.end()));if(started)await pg.stop();else await rm(dir,{recursive:true,force:true})}
 });
