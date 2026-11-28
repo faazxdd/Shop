@@ -113,6 +113,10 @@ const Shop = {
     return throwIfError(await q);
   },
 
+  async categoryPreviews() {
+    return throwIfError(await sb.rpc('category_previews'));
+  },
+
   async product(id) {
     return throwIfError(
       await sb.from('public_products')

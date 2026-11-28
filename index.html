@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-Od6v3A/fPIzoPqJtsn7f6u9lhhvP9bRwTb/H00FmSOo='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'sha256-+QAAkKm+e8WPzHczpjgZBTCdLyKb8VxqUe9N4ZlUQhI=' 'sha256-3iAExDm3OvVXB+GW6EXmrd5Y320Zv4eH+K1r/xP3fZM='; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self' https://gcmudhejegesvwdpkkdy.supabase.co wss://gcmudhejegesvwdpkkdy.supabase.co https://commons.wikimedia.org; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>FZ Cart</title>
 <meta name="description" content="Browse our products and place your order online.">
@@ -43,7 +43,7 @@
 <footer id="site-footer"></footer>
 </div>
 <script src="vendor/supabase-2.110.1.js"></script>
-<script src="supabase.js?v=cart-audit-fixes"></script>
+<script src="supabase.js?v=category-previews"></script>
 <script src="motion.js?v=cart-race-fix"></script><script src="shop.js?v=cart-audit-fixes"></script>
 <script>
 renderSiteHeader('home');
@@ -74,25 +74,29 @@ async function loadCategorySections(categories){
   });
   $('#categories').replaceChildren(...sections.map(({card}) => card));
   $('#category-sections').replaceChildren(...sections.map(({section}) => section));
-  for (let offset = 0; offset < sections.length; offset += 4) {
-    await Promise.all(sections.slice(offset, offset + 4).map(async ({category, section, card}) => {
+  if (!sections.length) return;
+  try {
+    const productsByCategory = new Map();
+    for (const product of await Shop.categoryPreviews()) {
+      if (!productsByCategory.has(product.category_id)) productsByCategory.set(product.category_id, []);
+      productsByCategory.get(product.category_id).push(product);
+    }
+    for (const {category, section, card} of sections) {
+      const rows = productsByCategory.get(category.id) || [];
       const preview = section.querySelector('.grid');
-      try {
-        const rows = await Shop.products({categoryId: category.id, limit: 4});
-        if (rows.length) preview.innerHTML = rows.map(productCardHtml).join('');
-        else preview.remove();
-        const source = rows.find(product => product.images?.[0])?.images[0];
-        if (source) {
-          const image = document.createElement('img');
-          image.alt = '';
-          image.addEventListener('load', () => card.querySelector('.collection-art').replaceChildren(image), {once:true});
-          image.src = source;
-        }
-      } catch (error) {
-        console.error(error);
-        preview.remove();
+      if (rows.length) preview.innerHTML = rows.map(productCardHtml).join('');
+      else preview.remove();
+      const source = rows.find(product => product.images?.[0])?.images[0];
+      if (source) {
+        const image = document.createElement('img');
+        image.alt = '';
+        image.addEventListener('load', () => card.querySelector('.collection-art').replaceChildren(image), {once:true});
+        image.src = source;
       }
-    }));
+    }
+  } catch (error) {
+    console.error(error);
+    for (const {section} of sections) section.querySelector('.grid').remove();
   }
 }
 async function load(){try{const s=await applyBusinessSettings();document.title="FZ Cart";
