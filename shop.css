@@ -472,3 +472,29 @@ main { animation:fc-fade-up 280ms ease backwards }
   box-shadow: inset 0 1px 2px #fffc, inset 0 -2px 2px #fff8,
     0 1px 0 var(--glass-edge), 0 3px 5px var(--glass-shadow);
 }
+
+/* Give product names, categories and prices distinct weights in the catalogue. */
+.pc {
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+}
+.pc .pt {
+  font-size: .9375rem;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: normal;
+}
+.pc .pm {
+  font-size: .75rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+.pc .price {
+  font-size: .9375rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.pc [data-card-cart] .btn {
+  font-size: .8125rem;
+  font-weight: 600;
+  letter-spacing: normal;
+}
