@@ -99,17 +99,15 @@ test('product sheet tracks the remaining cart quantity',async({page})=>{
   await expect(sheet.getByRole('button',{name:'More'})).toBeDisabled();
 });
 
-test('desktop Add button lifts on hover and respects reduced motion', async ({page}) => {
+test('desktop Add button uses a quiet hover state and adds a product', async ({page}) => {
   await page.setViewportSize({width: 1440, height: 900});
   await mock(page);
   await page.goto('/products.html');
   const card = page.locator('.pc').first();
   const add = card.locator('[data-add]');
+  await expect(add).toHaveCSS('background-image', 'none');
   await add.hover();
-  await expect(add).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, -2)');
-  await expect(add.locator('svg')).toHaveCSS('transform', 'matrix(1.16, 0, 0, 1.16, 0, 0)');
-  await page.emulateMedia({reducedMotion: 'reduce'});
-  await expect(add).toHaveCSS('transform', 'none');
+  await expect(add).toHaveCSS('background-color', 'rgb(238, 232, 221)');
   await add.click();
   await expect(card.locator('[data-card-count]')).toHaveText('1');
 });
@@ -122,10 +120,6 @@ test('desktop product photo zoom stays inside its card and respects reduced moti
   const card = page.locator('.pc').first();
   const button = card.locator('.product-image-button');
   const photo = button.locator('img');
-  const add = card.locator('[data-add]');
-  expect(await add.evaluate(button => getComputedStyle(button, '::after').backgroundImage)).toContain('linear-gradient');
-  await add.hover();
-  expect(await add.evaluate(button => getComputedStyle(button, '::before').animationName)).toBe('storefront-glass-sweep');
   await expect.poll(() => photo.evaluate(image => image.naturalWidth)).toBe(80);
   await button.hover();
   await expect(button).toHaveCSS('overflow', 'hidden');
