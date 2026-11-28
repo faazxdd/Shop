@@ -37,7 +37,7 @@ async function shareProduct(p){const url=new URL('products.html',location.href);
 const stockOf=p=>/out/i.test(p.stock_status||'')?'out':/low/i.test(p.stock_status||'')?'low':'in';
 function cardQuantity(id){return Shop.cart.get().find(line=>line.product_id===id)?.quantity||0}
 function cardCartButtons(id,quantity,out,limit){
-  const style='touch-action:manipulation;background-color:#fff;color:#142029;border:1px solid #cbd2d8;white-space:nowrap';
+  const style='touch-action:manipulation;white-space:nowrap';
   if(!quantity)return `<button type="button" class="btn sm" style="${style}" data-add="${id}" ${out||!limit?'disabled':''}>${ic('plus')}Add</button>`;
   return `<div role="group" aria-label="Cart quantity" style="display:inline-flex;align-items:center;gap:4px;touch-action:manipulation">
     <button type="button" class="btn sm" style="${style};min-width:32px;padding-inline:5px" data-card-minus="${id}" aria-label="Remove one">−</button>
