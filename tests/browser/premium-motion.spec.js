@@ -3,7 +3,7 @@ const first='10000000-0000-0000-0000-000000000001';
 const second='10000000-0000-0000-0000-000000000002';
 const products=[first,second].map((id,index)=>({id,name:'Test product '+index,images:[],stock_status:'in_stock',selling_price:20,brand:'Test'}));
 
-async function mock(page, stock=3){
+async function mock(page, stock=3, catalogue=products){
   await page.route('**/gcmudhejegesvwdpkkdy.supabase.co/**',async route=>{
     const request=route.request();
     const url=new URL(request.url());
@@ -12,7 +12,7 @@ async function mock(page, stock=3){
       if(items.some(item=>item.quantity>stock))return route.fulfill({status:400,json:{message:'Not enough stock for this product'}});
       return route.fulfill({json:{subtotal:20,discount_total:0,delivery_charge:0,total:20}});
     }
-    if(url.pathname.endsWith('/public_products'))return route.fulfill({json:products});
+    if(url.pathname.endsWith('/public_products'))return route.fulfill({json:catalogue});
     if(url.pathname.endsWith('/business_settings'))return route.fulfill({json:{business_name:'FC Cart',currency:'AED'}});
     return route.fulfill({json:[]});
   });
@@ -112,4 +112,24 @@ test('desktop Add button lifts on hover and respects reduced motion', async ({pa
   await expect(add).toHaveCSS('transform', 'none');
   await add.click();
   await expect(card.locator('[data-card-count]')).toHaveText('1');
+});
+
+test('desktop product photo zoom stays inside its card and respects reduced motion', async ({page}) => {
+  await page.setViewportSize({width: 1440, height: 900});
+  const imageUrl = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%2280%22%3E%3Crect width=%2280%22 height=%2280%22 fill=%22blue%22/%3E%3C/svg%3E';
+  await mock(page, 3, [{...products[0], images: [imageUrl]}]);
+  await page.goto('/products.html');
+  const card = page.locator('.pc').first();
+  const button = card.locator('.product-image-button');
+  const photo = button.locator('img');
+  await expect(card.locator('[data-add]')).toHaveCSS('background-image', /linear-gradient/);
+  await expect.poll(() => photo.evaluate(image => image.naturalWidth)).toBe(80);
+  await button.hover();
+  await expect(button).toHaveCSS('overflow', 'hidden');
+  await expect(photo).toHaveCSS('transform', 'matrix(1.06, 0, 0, 1.06, 0, 0)');
+  await page.mouse.move(0, 0);
+  await expect(photo).toHaveCSS('transform', 'none');
+  await button.hover();
+  await page.emulateMedia({reducedMotion: 'reduce'});
+  await expect(photo).toHaveCSS('transform', 'none');
 });
