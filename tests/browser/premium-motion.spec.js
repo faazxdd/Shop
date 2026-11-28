@@ -98,3 +98,18 @@ test('product sheet tracks the remaining cart quantity',async({page})=>{
   await expect(sheet.locator('#pq')).toHaveText('1');
   await expect(sheet.getByRole('button',{name:'More'})).toBeDisabled();
 });
+
+test('desktop Add button lifts on hover and respects reduced motion', async ({page}) => {
+  await page.setViewportSize({width: 1440, height: 900});
+  await mock(page);
+  await page.goto('/products.html');
+  const card = page.locator('.pc').first();
+  const add = card.locator('[data-add]');
+  await add.hover();
+  await expect(add).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, -2)');
+  await expect(add.locator('svg')).toHaveCSS('transform', 'matrix(1.16, 0, 0, 1.16, 0, 0)');
+  await page.emulateMedia({reducedMotion: 'reduce'});
+  await expect(add).toHaveCSS('transform', 'none');
+  await add.click();
+  await expect(card.locator('[data-card-count]')).toHaveText('1');
+});
