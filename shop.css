@@ -423,3 +423,52 @@ main { animation:fc-fade-up 280ms ease backwards }
   25% { opacity: 1; }
   to { background-position: 0 0; opacity: 0; }
 }
+
+/* Tinted glass with a bright rim and a visible beveled edge at rest. */
+:is(.btn, .acts .ib):not(:disabled):not([aria-disabled="true"]) {
+  --glass-top: #fcfdff;
+  --glass-bottom: #cbdcf4;
+  --glass-edge: #a6bbd9;
+  --glass-ink: #18314f;
+  --glass-shadow: #38577e44;
+  color: var(--glass-ink);
+  border-color: var(--glass-edge);
+  background: radial-gradient(ellipse at 20% 0%, #fff9, transparent 65%),
+    linear-gradient(165deg, var(--glass-top), var(--glass-bottom));
+  box-shadow: inset 0 1px 1px #fffe, inset 0 -3px 2px #ffffffa0,
+    0 3px 0 var(--glass-edge), 0 6px 9px var(--glass-shadow);
+}
+
+:is(.btn.dark, [data-card-cart] [data-add]):not(:disabled):not([aria-disabled="true"]) {
+  --glass-top: #e9e3ff;
+  --glass-bottom: #9dcff8;
+  --glass-edge: #91a8dc;
+  --glass-ink: #18265d;
+  --glass-shadow: #525bc363;
+}
+
+:root[data-shop-theme=dark] :is(.btn, .acts .ib):not(:disabled) {
+  --glass-top: #687baa;
+  --glass-bottom: #303d67;
+  --glass-edge: #6578a7;
+  --glass-ink: #fff;
+  --glass-shadow: #080f2f99;
+}
+
+:root[data-shop-theme=dark] :is(.btn.dark, [data-card-cart] [data-add]):not(:disabled):not([aria-disabled="true"]) {
+  --glass-top: #8e7dcc;
+  --glass-bottom: #386b9e;
+  --glass-edge: #8fa2e1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :is(.btn, .acts .ib):hover:not(:disabled):not([aria-disabled="true"]) {
+    box-shadow: inset 0 1px 2px #fff, inset 0 -3px 3px #ffffffb0,
+      0 3px 0 var(--glass-edge), 0 8px 12px var(--glass-shadow);
+  }
+}
+
+:is(.btn, .acts .ib):active:not(:disabled):not([aria-disabled="true"]) {
+  box-shadow: inset 0 1px 2px #fffc, inset 0 -2px 2px #fff8,
+    0 1px 0 var(--glass-edge), 0 3px 5px var(--glass-shadow);
+}
