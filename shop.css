@@ -503,3 +503,37 @@ body, .pc { font-family: var(--sp); }
   border-radius: 999px;
   padding-inline: 18px;
 }
+
+/* White symbols on charcoal surfaces, including in dark mode. */
+:root {
+  --icon-surface: #292622;
+  --icon-hover: #423b34;
+  --icon-ink: #fff;
+}
+.acts .ib,
+.acts > .btn.dark,
+.pc .hb,
+#pq-add.btn,
+.pc [data-card-cart] > [data-add]:not(:disabled) {
+  background: var(--icon-surface);
+  border-color: var(--icon-surface);
+  color: var(--icon-ink);
+}
+.acts .ib:hover,
+.acts > .btn.dark:hover,
+.pc .hb:hover,
+#pq-add.btn:hover:not(:disabled),
+.pc [data-card-cart] > [data-add]:hover:not(:disabled) {
+  background: var(--icon-hover);
+  border-color: var(--icon-hover);
+  color: var(--icon-ink);
+}
+.pc .hb.on { color: var(--icon-ink); box-shadow: inset 0 0 0 1px var(--icon-ink); }
+.dock a > svg {
+  box-sizing: content-box;
+  padding: 3px;
+  border-radius: 6px;
+  background: var(--icon-surface);
+  color: var(--icon-ink);
+}
+.dock a.on > svg { color: var(--icon-ink); }

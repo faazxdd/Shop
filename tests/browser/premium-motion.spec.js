@@ -107,7 +107,7 @@ test('desktop Add button uses a quiet hover state and adds a product', async ({p
   const add = card.locator('[data-add]');
   await expect(add).toHaveCSS('background-image', 'none');
   await add.hover();
-  await expect(add).toHaveCSS('background-color', 'rgb(94, 72, 52)');
+  await expect(add).toHaveCSS('background-color', 'rgb(66, 59, 52)');
   await add.click();
   await expect(card.locator('[data-card-count]')).toHaveText('1');
 });
