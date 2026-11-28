@@ -498,3 +498,44 @@ main { animation:fc-fade-up 280ms ease backwards }
   font-weight: 600;
   letter-spacing: normal;
 }
+
+@font-face {
+  font-family: Manrope;
+  src: url("vendor/manrope/manrope-latin.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+}
+:root { --sp: Manrope, system-ui, sans-serif; }
+body, .pc { font-family: var(--sp); }
+.shop-intro {
+  padding: clamp(28px, 6vw, 72px);
+  margin: 8px 0 32px;
+  border: 1px solid var(--s2);
+  border-radius: 28px;
+  background: radial-gradient(ellipse at top right, #dcdffa 0%, transparent 62%), var(--s0);
+}
+:root[data-shop-theme=dark] .shop-intro {
+  background: radial-gradient(ellipse at top right, #28253d 0%, transparent 62%), var(--s0);
+}
+.shop-intro h1 { font-size: clamp(32px, 6vw, 66px); line-height: 1.05; font-weight: 800; }
+.shop-intro .search { max-width: 520px; }
+.home-categories { display: flex; flex-wrap: wrap; gap: 8px; }
+.home-categories a {
+  padding: 8px 15px;
+  border: 1px solid var(--s2);
+  border-radius: 999px;
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 650;
+}
+.home-categories a:hover { background: var(--s1); }
+#cat-sec { margin-bottom: 28px; }
+.grid { gap: clamp(12px, 2vw, 26px); }
+.pc, .pc:hover { padding: 0; border-color: transparent; box-shadow: none; }
+.pc .pi { margin-bottom: 10px; border-radius: 16px; border: 0; }
+.pc .pt { font-weight: 650; }
+.pc .pf { border-top: 0; margin-top: 6px; padding-top: 4px; }
+:is(.btn, .acts .ib):not(:disabled):not([aria-disabled="true"]) {
+  border-radius: 999px;
+}
+.pc [data-card-cart] .btn:not(:disabled) { min-height: 40px; }

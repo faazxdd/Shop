@@ -28,36 +28,23 @@ test('inline scripts run under the page CSP and mobile navigation works by touch
   await expect(page).toHaveURL(/\/cart\.html/);
 });
 
-test('home page makes one request for all category previews', async ({baseURL, context, page}) => {
-  const categories = Array.from({length: 10}, (_, index) => ({
-    id: String(index + 1),
-    name: 'Category ' + (index + 1),
-  }));
-  let previewRequests = 0;
-  let perCategoryRequests = 0;
+test('home page shows category links and one product grid', async ({baseURL, context, page}) => {
+  let catalogueRequests = 0;
   await context.route('**/*', route => {
     const url = new URL(route.request().url());
     if (url.origin === new URL(baseURL).origin) return route.continue();
-    if (url.pathname.endsWith('/business_settings')) return route.fulfill({json: {business_name: 'FZ Cart', currency: 'AED'}});
-    if (url.pathname.endsWith('/categories')) return route.fulfill({json: categories});
-    if (url.pathname.endsWith('/public_products') && url.searchParams.has('category_id')) perCategoryRequests++;
-    if (url.pathname.endsWith('/rpc/category_previews')) {
-      previewRequests++;
-      return route.fulfill({json: categories.map(category => ({
-        id: 'product-' + category.id,
-        name: 'Preview ' + category.id,
-        category_id: category.id,
-        selling_price: 10,
-        stock_status: 'in_stock',
-        images: [],
-      }))});
+    if (url.pathname.endsWith('/business_settings')) return route.fulfill({json: {business_name: 'FZ Cart'}});
+    if (url.pathname.endsWith('/categories')) return route.fulfill({json: [{id: 'a', name: 'Accessories'}]});
+    if (url.pathname.endsWith('/public_products')) {
+      catalogueRequests++;
+      return route.fulfill({json: [{id: 'item', name: 'Canvas bag', selling_price: 10}]});
     }
+    if (url.pathname.endsWith('/rpc/category_previews')) throw Error('Unexpected category preview request');
     return route.fulfill({json: []});
   });
   await context.routeWebSocket('**/realtime/**', socket => socket.close());
-
   await page.goto('/index.html');
-  await expect(page.locator('#category-sections .pc')).toHaveCount(10);
-  expect(previewRequests).toBe(1);
-  expect(perCategoryRequests).toBe(0);
+  await expect(page.getByRole('link', {name: 'Accessories'})).toHaveAttribute('href', 'products.html?cat=a');
+  await expect(page.locator('main .pc')).toHaveCount(1);
+  expect(catalogueRequests).toBe(1);
 });
