@@ -373,3 +373,29 @@ main { animation:fc-fade-up 280ms ease backwards }
     transform: scale(1.16);
   }
 }
+
+/* A glossy surface for storefront actions in both themes. */
+:is(.btn, .acts .ib):not(:disabled),
+:is(.btn, .acts .ib):hover:not(:disabled) {
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 23%), transparent 54%),
+    linear-gradient(0deg, rgb(0 0 0 / 5%), transparent 45%);
+}
+
+.product-image-button { overflow: hidden; border-radius: inherit; }
+
+@media (hover: hover) and (pointer: fine) {
+  :is(.btn, .acts .ib):hover:not(:disabled) {
+    background-image: linear-gradient(155deg, rgb(255 255 255 / 35%), transparent 65%),
+      linear-gradient(0deg, rgb(0 0 0 / 6%), transparent 45%);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .product-image-button img {
+    transition: transform 280ms cubic-bezier(.2,.7,.3,1);
+  }
+
+  .product-image-button:hover img {
+    transform: scale(1.06);
+  }
+}
