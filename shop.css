@@ -339,3 +339,37 @@ main { animation:fc-fade-up 280ms ease backwards }
 .dock:has(.motion-dock-indicator) a.on { background:transparent; color:var(--on-action); }
 .dock a.on > span, .dock a.on > svg { color:inherit; }
 .motion-dock-indicator { background:var(--action); }
+
+/* Desktop button feedback for mouse and trackpad. */
+@media (hover: hover) and (pointer: fine) {
+  :is(.btn, .hb, .qty button, .acts .ib) {
+    transition: transform 150ms ease, background-color 180ms ease,
+      border-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
+  }
+
+  :is(.btn, .hb, .qty button, .acts .ib):hover:not(:disabled):not([aria-disabled="true"]) {
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--ink) 14%, transparent);
+  }
+
+  :is([data-card-cart] [data-add], #pq-add):hover:not(:disabled) {
+    box-shadow: 0 5px 15px color-mix(in srgb, var(--blue) 30%, transparent);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  :is(.btn, .hb, .qty button, .acts .ib):hover:not(:disabled):not([aria-disabled="true"]) {
+    transform: translateY(-2px);
+  }
+
+  :is(.btn, .hb, .qty button, .acts .ib):hover:active:not(:disabled):not([aria-disabled="true"]) {
+    transform: scale(.96);
+  }
+
+  :is([data-card-cart] [data-add], #pq-add) svg {
+    transition: transform 180ms ease;
+  }
+
+  :is([data-card-cart] [data-add], #pq-add):hover:not(:disabled) svg {
+    transform: scale(1.16);
+  }
+}
