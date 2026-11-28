@@ -122,11 +122,14 @@ test('desktop product photo zoom stays inside its card and respects reduced moti
   const card = page.locator('.pc').first();
   const button = card.locator('.product-image-button');
   const photo = button.locator('img');
-  await expect(card.locator('[data-add]')).toHaveCSS('background-image', /linear-gradient/);
+  const add = card.locator('[data-add]');
+  expect(await add.evaluate(button => getComputedStyle(button, '::after').backgroundImage)).toContain('linear-gradient');
+  await add.hover();
+  expect(await add.evaluate(button => getComputedStyle(button, '::before').animationName)).toBe('storefront-glass-sweep');
   await expect.poll(() => photo.evaluate(image => image.naturalWidth)).toBe(80);
   await button.hover();
   await expect(button).toHaveCSS('overflow', 'hidden');
-  await expect(photo).toHaveCSS('transform', 'matrix(1.06, 0, 0, 1.06, 0, 0)');
+  await expect(photo).toHaveCSS('transform', 'matrix(1.12, 0, 0, 1.12, 0, 0)');
   await page.mouse.move(0, 0);
   await expect(photo).toHaveCSS('transform', 'none');
   await button.hover();
