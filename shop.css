@@ -539,3 +539,37 @@ body, .pc { font-family: var(--sp); }
   border-radius: 999px;
 }
 .pc [data-card-cart] .btn:not(:disabled) { min-height: 40px; }
+/* High-contrast white symbols on neutral controls. */
+:root, :root[data-shop-theme=dark] {
+  --control-surface: #282828;
+  --control-hover: #414141;
+}
+.acts .ib:not(:disabled),
+.acts .btn.dark:not(:disabled),
+.pc .hb,
+.pc [data-card-cart] .btn:not(:disabled),
+#pq-add.btn:not(:disabled),
+.dock a.on {
+  background: var(--control-surface);
+  color: #fff;
+  border-color: var(--control-surface);
+  box-shadow: none;
+}
+:is(.acts .ib, .acts .btn.dark, .pc .hb, .pc [data-card-cart] .btn, #pq-add.btn):hover:not(:disabled) {
+  background: var(--control-hover);
+  color: #fff;
+  border-color: var(--control-hover);
+}
+:is(.acts .ib, .acts .btn, .pc [data-card-cart] .btn, #pq-add.btn)::after {
+  content: none;
+}
+.pc .hb.on svg { fill: currentColor; }
+.dock .motion-dock-indicator { background: var(--control-surface); }
+.dock a > svg {
+  box-sizing: content-box;
+  padding: 3px;
+  border-radius: 6px;
+  background: var(--control-surface);
+  color: #fff;
+}
+
